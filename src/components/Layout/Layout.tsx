@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { type FC, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import Sidebar from '../Sidebar/Sidebar';
+import Sidebar from '@/components/Sidebar/Sidebar';
 
-const Layout = () => {
+const Layout: FC = () => {
   const location = useLocation();
   const activeTab = location.pathname.substring(1) || 'dashboard';
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -21,11 +21,11 @@ const Layout = () => {
         </h1>
         <button
           onClick={toggleMobileMenu}
-          className='p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200'
+          className='p-2 rounded-lg hover:bg-gray-100 transition-all duration-200'
           aria-label='Toggle menu'
         >
           <svg
-            className='w-6 h-6 text-gray-600'
+            className='w-6 h-6 text-gray-600 transition-transform duration-200'
             fill='none'
             stroke='currentColor'
             viewBox='0 0 24 24'
@@ -51,7 +51,10 @@ const Layout = () => {
 
       {/* Sidebar */}
       <div className={`${isMobileMenuOpen ? 'block' : 'hidden'} sm:block`}>
-        <Sidebar activeTab={activeTab} />
+        <Sidebar 
+          activeTab={activeTab} 
+          onMobileMenuClose={() => setIsMobileMenuOpen(false)}
+        />
       </div>
 
       {/* Main Content */}

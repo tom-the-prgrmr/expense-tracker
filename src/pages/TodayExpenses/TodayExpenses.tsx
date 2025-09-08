@@ -1,15 +1,19 @@
-const TodayExpenses = () => {
+import { type FC } from 'react';
+import PageLayout from '@/components/PageLayout/PageLayout';
+
+const TodayExpenses: FC = () => {
   return (
-    <div className='p-6'>
-      <h1 className='text-3xl font-bold text-gray-900 mb-6'>
-        Chi tiêu hôm nay
-      </h1>
+    <PageLayout
+      title="Chi tiêu hôm nay"
+      icon="📅"
+      subtitle="Xem và quản lý các khoản chi tiêu trong ngày"
+    >
       <div className='bg-white rounded-lg shadow p-6'>
         <p className='text-gray-600'>
           Danh sách chi tiêu trong ngày sẽ được hiển thị ở đây.
         </p>
       </div>
-    </div>
+    </PageLayout>
   );
 };
 

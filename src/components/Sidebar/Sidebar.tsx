@@ -1,10 +1,12 @@
+import { type FC } from 'react';
 import { Link } from 'react-router-dom';
 
 interface SidebarProps {
   activeTab: string;
+  onMobileMenuClose?: () => void;
 }
 
-const Sidebar = ({ activeTab }: SidebarProps) => {
+const Sidebar: FC<SidebarProps> = ({ activeTab, onMobileMenuClose }) => {
   const menuItems = [
     {
       id: 'dashboard',
@@ -53,6 +55,7 @@ const Sidebar = ({ activeTab }: SidebarProps) => {
             <Link
               key={item.id}
               to={`/${item.id}`}
+              onClick={onMobileMenuClose}
               className={`w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-left rounded-lg transition-all duration-200 ${
                 activeTab === item.id
                   ? 'bg-indigo-50 text-indigo-700 border-r-2 border-indigo-500'

@@ -1,3 +1,4 @@
+import { type FC } from 'react';
 import {
   Navigate,
   Route,
@@ -5,15 +6,15 @@ import {
   Routes,
 } from 'react-router-dom';
 import './App.css';
-import Layout from './components/Layout/Layout';
-import Account from './pages/Account/Account';
-import AddExpense from './pages/AddExpense/AddExpense';
-import Dashboard from './pages/Dashboard/Dashboard';
-import Reports from './pages/Reports/Reports';
-import SetBudget from './pages/SetBudget/SetBudget';
-import TodayExpenses from './pages/TodayExpenses/TodayExpenses';
+import Layout from '@/components/Layout/Layout';
+import Account from '@/pages/Account/Account';
+import AddExpense from '@/pages/AddExpense/AddExpense';
+import Dashboard from '@/pages/Dashboard/Dashboard';
+import Reports from '@/pages/Reports/Reports';
+import SetBudget from '@/pages/SetBudget/SetBudget';
+import TodayExpenses from '@/pages/TodayExpenses/TodayExpenses';
 
-function App() {
+const App: FC = () => {
   return (
     <Router>
       <Routes>
