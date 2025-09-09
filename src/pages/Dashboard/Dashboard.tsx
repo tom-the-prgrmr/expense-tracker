@@ -2,6 +2,7 @@ import PieChart from '@/components/Charts/PieChart';
 import RadialProgress from '@/components/Charts/RadialProgress';
 import PageLayout from '@/components/PageLayout/PageLayout';
 import { apiFetch } from '@/config/api';
+import { PIE_CHART_COLORS } from '@/constants/charts';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import {
   type CategoriesResponse,
@@ -224,22 +225,11 @@ const Dashboard: FC = () => {
 
     // If no expenses, return categories with 0%
     if (totalExpenseAmount === 0) {
-      const colors = [
-        '#6366F1',
-        '#22C55E',
-        '#F59E0B',
-        '#EF4444',
-        '#8B5CF6',
-        '#06B6D4',
-        '#F97316',
-        '#84CC16',
-      ];
-
       return categoriesData.data.map(
         (category: CategoryDto, index: number) => ({
           label: category.name,
           value: 0,
-          color: colors[index % colors.length],
+          color: PIE_CHART_COLORS[index % PIE_CHART_COLORS.length],
         })
       );
     }
@@ -255,17 +245,6 @@ const Dashboard: FC = () => {
       );
     });
 
-    const colors = [
-      '#6366F1',
-      '#22C55E',
-      '#F59E0B',
-      '#EF4444',
-      '#8B5CF6',
-      '#06B6D4',
-      '#F97316',
-      '#84CC16',
-    ];
-
     // Map categories to pie chart data, matching category.id with category_id from expenses
     return categoriesData.data.map((category: CategoryDto, index: number) => {
       // Match category.id with category_id from money notes
@@ -278,7 +257,7 @@ const Dashboard: FC = () => {
       return {
         label: category.name,
         value: Math.round(percentage * 100) / 100, // Round to 2 decimal places
-        color: colors[index % colors.length],
+        color: PIE_CHART_COLORS[index % PIE_CHART_COLORS.length],
       };
     });
   }, [categoriesData, monthlyMoneyNotesData]);
