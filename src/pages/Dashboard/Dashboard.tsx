@@ -1,7 +1,24 @@
 import PieChart from '@/components/Charts/PieChart';
 import RadialProgress from '@/components/Charts/RadialProgress';
 import PageLayout from '@/components/PageLayout/PageLayout';
-import { type FC, useState } from 'react';
+import { apiFetch } from '@/config/api';
+import { useApiQuery } from '@/hooks/useApiQuery';
+import {
+  type CategoriesResponse,
+  type CategoryDto,
+  type MoneyNoteDto,
+  type MoneyNotesResponse,
+} from '@/types/api';
+import {
+  getFirstDayOfMonth,
+  getLastDayOfMonth,
+  localDateToEndOfDayEpochSeconds,
+  localDateToEpochSeconds,
+  parseEpochSecondsOrIsoToDate,
+} from '@/utils/date';
+import { type FC, useMemo, useState } from 'react';
+
+type MoneyNote = MoneyNoteDto;
 
 const Dashboard: FC = () => {
   // Placeholder data; replace with real data later
@@ -11,14 +28,170 @@ const Dashboard: FC = () => {
   const withinLimit = spentToday <= limitAmount;
   const spentPercent = Math.min((spentToday / limitAmount) * 100, 100);
 
-  const todayList = [
-    { id: '1', time: '08:20', title: 'Cà phê sáng', amount: 45000 },
-    { id: '2', time: '12:15', title: 'Cơm trưa', amount: 65000 },
-    { id: '3', time: '18:40', title: 'Xăng xe', amount: 120000 },
-    { id: '4', time: '19:10', title: 'Trà sữa', amount: 52000 },
-    { id: '5', time: '20:05', title: 'Bánh ngọt', amount: 38000 },
-    { id: '6', time: '21:30', title: 'Thuốc', amount: 68000 },
-  ];
+  // Today range converted to timestamps for API
+  const today = useMemo(() => new Date(), []);
+  const startDate = localDateToEpochSeconds(today);
+  const endDate = localDateToEndOfDayEpochSeconds(today);
+
+  // Fetch today's expenses
+  const {
+    data: moneyNotesData,
+    isLoading: isLoadingToday,
+    isError: isErrorToday,
+    error: todayError,
+  } = useApiQuery({
+    queryKey: ['money-notes', startDate, endDate],
+    queryFn: async () => {
+      try {
+        return await apiFetch<MoneyNotesResponse>(
+          `/api/v1/money-note?start_date=${startDate}&end_date=${endDate}&category_id=2`
+        );
+      } catch (error) {
+        // Try to parse error message from API response
+        if (error instanceof Error) {
+          let errorMessage = 'Không thể tải dữ liệu chi tiêu hôm nay.';
+          try {
+            const errorData = JSON.parse(error.message);
+            if (errorData.detail?.message) {
+              errorMessage = errorData.detail.message;
+            } else if (errorData.message) {
+              errorMessage = errorData.message;
+            } else if (typeof errorData === 'string') {
+              errorMessage = errorData;
+            }
+          } catch {
+            errorMessage =
+              error.message.length < 200
+                ? error.message
+                : 'Lỗi không xác định từ API.';
+          }
+          throw new Error(errorMessage);
+        }
+        throw error;
+      }
+    },
+    loadingMessage: 'Đang tải chi tiêu hôm nay...',
+    staleTime: Infinity,
+    gcTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    retry: 1,
+  });
+
+  // Fetch categories
+  const {
+    data: categoriesData,
+    isLoading: isLoadingCategories,
+    isError: isErrorCategories,
+    error: categoriesError,
+  } = useApiQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      try {
+        return await apiFetch<CategoriesResponse>('/api/v1/category');
+      } catch (error) {
+        if (error instanceof Error) {
+          let errorMessage = 'Không thể tải danh mục.';
+          try {
+            const errorData = JSON.parse(error.message);
+            if (errorData.detail?.message) {
+              errorMessage = errorData.detail.message;
+            } else if (errorData.message) {
+              errorMessage = errorData.message;
+            } else if (typeof errorData === 'string') {
+              errorMessage = errorData;
+            }
+          } catch {
+            errorMessage =
+              error.message.length < 200
+                ? error.message
+                : 'Lỗi không xác định từ API.';
+          }
+          throw new Error(errorMessage);
+        }
+        throw error;
+      }
+    },
+    loadingMessage: 'Đang tải danh mục...',
+    staleTime: Infinity,
+    gcTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    retry: 1,
+  });
+
+  // Fetch monthly money notes for category percentage calculation
+  const firstDayOfMonth = getFirstDayOfMonth(today);
+  const lastDayOfMonth = getLastDayOfMonth(today);
+  const monthlyStartDate = localDateToEpochSeconds(firstDayOfMonth);
+  const monthlyEndDate = localDateToEndOfDayEpochSeconds(lastDayOfMonth);
+
+  const {
+    data: monthlyMoneyNotesData,
+    isLoading: isLoadingMonthly,
+    isError: isErrorMonthly,
+    error: monthlyError,
+  } = useApiQuery({
+    queryKey: ['monthly-money-notes', monthlyStartDate, monthlyEndDate],
+    queryFn: async () => {
+      try {
+        return await apiFetch<MoneyNotesResponse>(
+          `/api/v1/money-note?start_date=${monthlyStartDate}&end_date=${monthlyEndDate}&category_id=2`
+        );
+      } catch (error) {
+        if (error instanceof Error) {
+          let errorMessage = 'Không thể tải dữ liệu chi tiêu tháng.';
+          try {
+            const errorData = JSON.parse(error.message);
+            if (errorData.detail?.message) {
+              errorMessage = errorData.detail.message;
+            } else if (errorData.message) {
+              errorMessage = errorData.message;
+            } else if (typeof errorData === 'string') {
+              errorMessage = errorData;
+            }
+          } catch {
+            errorMessage =
+              error.message.length < 200
+                ? error.message
+                : 'Lỗi không xác định từ API.';
+          }
+          throw new Error(errorMessage);
+        }
+        throw error;
+      }
+    },
+    loadingMessage: 'Đang tải dữ liệu chi tiêu tháng...',
+    staleTime: Infinity,
+    gcTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    retry: 1,
+  });
+
+  type TodayItem = { id: string; time: string; title: string; amount: number };
+  const todayList: TodayItem[] = useMemo(() => {
+    const raw = Array.isArray(moneyNotesData?.data)
+      ? (moneyNotesData!.data as MoneyNote[])
+      : [];
+
+    return raw.map((it: MoneyNote, idx: number) => {
+      const dt = parseEpochSecondsOrIsoToDate(it.date ?? it.created_at ?? 0);
+      const hh = String(dt.getHours()).padStart(2, '0');
+      const mm = String(dt.getMinutes()).padStart(2, '0');
+      const title = it.note || 'Chi tiêu';
+      const amount = Number(it.amount ?? 0) || 0;
+      return {
+        id: String(it.id ?? idx),
+        time: `${hh}:${mm}`,
+        title,
+        amount,
+      };
+    });
+  }, [moneyNotesData]);
 
   // Pagination for Today Expenses
   const [todayPage, setTodayPage] = useState(1);
@@ -29,16 +202,120 @@ const Dashboard: FC = () => {
   const goTodayPage = (p: number) =>
     setTodayPage(Math.min(Math.max(1, p), totalTodayPages));
 
-  const categories = [
-    { label: 'Ăn uống', value: 45, color: '#6366F1' },
-    { label: 'Di chuyển', value: 25, color: '#22C55E' },
-    { label: 'Giải trí', value: 15, color: '#F59E0B' },
-    { label: 'Khác', value: 15, color: '#EF4444' },
-  ];
+  // Generate pie chart data from categories API with real percentage calculation
+  const categories = useMemo(() => {
+    if (!categoriesData?.data || !Array.isArray(categoriesData.data)) {
+      return [];
+    }
 
-  const monthTotal = 12500000;
-  const txCount = 86;
-  const avgPerDay = 416000;
+    // Get monthly expense data
+    const monthlyExpenses = Array.isArray(monthlyMoneyNotesData?.data)
+      ? (monthlyMoneyNotesData!.data as MoneyNote[])
+      : [];
+
+    // Filter expenses by type (assuming type 1 = expense)
+    const expenses = monthlyExpenses.filter((note) => note.type === 1);
+
+    // Calculate total expense amount
+    const totalExpenseAmount = expenses.reduce(
+      (sum, note) => sum + (note.amount || 0),
+      0
+    );
+
+    // If no expenses, return categories with 0%
+    if (totalExpenseAmount === 0) {
+      const colors = [
+        '#6366F1',
+        '#22C55E',
+        '#F59E0B',
+        '#EF4444',
+        '#8B5CF6',
+        '#06B6D4',
+        '#F97316',
+        '#84CC16',
+      ];
+
+      return categoriesData.data.map(
+        (category: CategoryDto, index: number) => ({
+          label: category.name,
+          value: 0,
+          color: colors[index % colors.length],
+        })
+      );
+    }
+
+    // Calculate amount per category_id (from money notes)
+    const categoryAmounts = new Map<number, number>();
+    expenses.forEach((expense) => {
+      const categoryId = expense.category_id;
+      const amount = expense.amount || 0;
+      categoryAmounts.set(
+        categoryId,
+        (categoryAmounts.get(categoryId) || 0) + amount
+      );
+    });
+
+    const colors = [
+      '#6366F1',
+      '#22C55E',
+      '#F59E0B',
+      '#EF4444',
+      '#8B5CF6',
+      '#06B6D4',
+      '#F97316',
+      '#84CC16',
+    ];
+
+    // Map categories to pie chart data, matching category.id with category_id from expenses
+    return categoriesData.data.map((category: CategoryDto, index: number) => {
+      // Match category.id with category_id from money notes
+      const categoryAmount = categoryAmounts.get(category.id) || 0;
+      const percentage =
+        totalExpenseAmount > 0
+          ? (categoryAmount / totalExpenseAmount) * 100
+          : 0;
+
+      return {
+        label: category.name,
+        value: Math.round(percentage * 100) / 100, // Round to 2 decimal places
+        color: colors[index % colors.length],
+      };
+    });
+  }, [categoriesData, monthlyMoneyNotesData]);
+
+  // Calculate monthly summary data from API
+  const monthlySummary = useMemo(() => {
+    const monthlyExpenses = Array.isArray(monthlyMoneyNotesData?.data)
+      ? (monthlyMoneyNotesData!.data as MoneyNote[])
+      : [];
+
+    // Filter expenses by type (assuming type 1 = expense)
+    const expenses = monthlyExpenses.filter((note) => note.type === 1);
+
+    // Calculate total expense amount for the month
+    const monthTotal = expenses.reduce(
+      (sum, note) => sum + (note.amount || 0),
+      0
+    );
+
+    // Count total transactions (all money notes, not just expenses)
+    const txCount = monthlyExpenses.length;
+
+    // Calculate average per day (total expenses / number of days in month)
+    const daysInMonth = new Date(
+      today.getFullYear(),
+      today.getMonth() + 1,
+      0
+    ).getDate();
+    const avgPerDay =
+      daysInMonth > 0 ? Math.round(monthTotal / daysInMonth) : 0;
+
+    return {
+      monthTotal,
+      txCount,
+      avgPerDay,
+    };
+  }, [monthlyMoneyNotesData, today]);
 
   return (
     <PageLayout
@@ -144,24 +421,39 @@ const Dashboard: FC = () => {
             </div>
           </div>
           <div className='divide-y divide-white/10'>
-            {pagedTodayList.map((e) => (
-              <div
-                key={e.id}
-                className='flex items-center justify-between py-2.5 sm:py-3'
-              >
-                <div className='flex items-center gap-3'>
-                  <div className='text-[11px] sm:text-xs text-muted w-12'>
-                    {e.time}
-                  </div>
-                  <div className='text-sm font-medium text-primary'>
-                    {e.title}
-                  </div>
-                </div>
-                <div className='text-sm font-bold text-primary text-gradient leading-tight text-right'>
-                  {e.amount.toLocaleString('vi-VN')}₫
-                </div>
+            {isLoadingToday ? (
+              <div className='py-3 text-sm text-muted'>
+                Đang tải chi tiêu hôm nay...
               </div>
-            ))}
+            ) : isErrorToday ? (
+              <div className='py-3 text-sm text-accent-red'>
+                {todayError?.message ||
+                  'Không thể tải dữ liệu chi tiêu hôm nay.'}
+              </div>
+            ) : pagedTodayList.length === 0 ? (
+              <div className='py-3 text-sm text-muted'>
+                Chưa có chi tiêu nào hôm nay.
+              </div>
+            ) : (
+              pagedTodayList.map((e) => (
+                <div
+                  key={e.id}
+                  className='flex items-center justify-between py-2.5 sm:py-3'
+                >
+                  <div className='flex items-center gap-3'>
+                    <div className='text-[11px] sm:text-xs text-muted w-12'>
+                      {e.time}
+                    </div>
+                    <div className='text-sm font-medium text-primary'>
+                      {e.title}
+                    </div>
+                  </div>
+                  <div className='text-sm font-bold text-primary text-gradient leading-tight text-right'>
+                    {e.amount.toLocaleString('vi-VN')}₫
+                  </div>
+                </div>
+              ))
+            )}
           </div>
           {/* Pagination controls */}
           <div className='flex items-center justify-between pt-3'>
@@ -205,30 +497,57 @@ const Dashboard: FC = () => {
             Top danh mục chi tiêu
           </h2>
           <div className='grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 items-center'>
-            {/* Pie chart */}
-            <div className='flex items-center justify-center'>
-              <PieChart data={categories} size={192} radius={14} />
-            </div>
-            {/* Legend */}
-            <div className='space-y-2 sm:space-y-3'>
-              {categories.map((c) => (
-                <div
-                  key={c.label}
-                  className='flex items-center justify-between'
-                >
-                  <div className='flex items-center gap-3'>
-                    <span
-                      className='w-3 h-3 rounded-full'
-                      style={{ backgroundColor: c.color }}
-                    />
-                    <span className='text-sm text-secondary'>{c.label}</span>
-                  </div>
-                  <span className='text-sm font-semibold text-primary'>
-                    {c.value}%
-                  </span>
+            {isLoadingCategories || isLoadingMonthly ? (
+              <div className='col-span-2 flex items-center justify-center py-8'>
+                <div className='text-sm text-muted'>Đang tải dữ liệu...</div>
+              </div>
+            ) : isErrorCategories ? (
+              <div className='col-span-2 flex items-center justify-center py-8'>
+                <div className='text-sm text-accent-red'>
+                  {categoriesError?.message || 'Không thể tải danh mục.'}
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : isErrorMonthly ? (
+              <div className='col-span-2 flex items-center justify-center py-8'>
+                <div className='text-sm text-accent-red'>
+                  {monthlyError?.message ||
+                    'Không thể tải dữ liệu chi tiêu tháng.'}
+                </div>
+              </div>
+            ) : categories.length === 0 ? (
+              <div className='col-span-2 flex items-center justify-center py-8'>
+                <div className='text-sm text-muted'>Chưa có danh mục nào.</div>
+              </div>
+            ) : (
+              <>
+                {/* Pie chart */}
+                <div className='flex items-center justify-center'>
+                  <PieChart data={categories} size={192} radius={14} />
+                </div>
+                {/* Legend */}
+                <div className='space-y-2 sm:space-y-3'>
+                  {categories.map((c) => (
+                    <div
+                      key={c.label}
+                      className='flex items-center justify-between'
+                    >
+                      <div className='flex items-center gap-3'>
+                        <span
+                          className='w-3 h-3 rounded-full'
+                          style={{ backgroundColor: c.color }}
+                        />
+                        <span className='text-sm text-secondary'>
+                          {c.label}
+                        </span>
+                      </div>
+                      <span className='text-sm font-semibold text-primary'>
+                        {c.value}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </section>
 
@@ -240,7 +559,7 @@ const Dashboard: FC = () => {
                 Tổng chi tháng
               </div>
               <div className='text-lg sm:text-xl font-bold text-primary text-gradient leading-tight break-words whitespace-normal'>
-                {monthTotal.toLocaleString('vi-VN')}₫
+                {monthlySummary.monthTotal.toLocaleString('vi-VN')}₫
               </div>
             </div>
             <div className='card-glass p-3 sm:p-6 min-w-0 text-center sm:text-left'>
@@ -248,7 +567,7 @@ const Dashboard: FC = () => {
                 Số giao dịch
               </div>
               <div className='text-lg sm:text-xl font-bold text-primary leading-tight break-words whitespace-normal'>
-                {txCount}
+                {monthlySummary.txCount}
               </div>
             </div>
             <div className='card-glass p-3 sm:p-6 min-w-0 text-center sm:text-left'>
@@ -256,7 +575,7 @@ const Dashboard: FC = () => {
                 Trung bình/ngày
               </div>
               <div className='text-lg sm:text-xl font-bold text-primary text-gradient leading-tight break-words whitespace-normal'>
-                {avgPerDay.toLocaleString('vi-VN')}₫
+                {monthlySummary.avgPerDay.toLocaleString('vi-VN')}₫
               </div>
             </div>
           </div>
