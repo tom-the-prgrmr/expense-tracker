@@ -6,6 +6,7 @@ import {
   Routes,
 } from 'react-router-dom';
 import './App.css';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import Layout from '@/components/Layout/Layout';
 import Account from '@/pages/Account/Account';
 import AddExpense from '@/pages/AddExpense/AddExpense';
@@ -16,19 +17,21 @@ import TodayExpenses from '@/pages/TodayExpenses/TodayExpenses';
 
 const App: FC = () => {
   return (
-    <Router>
-      <Routes>
-        <Route path='/' element={<Navigate to='/dashboard' replace />} />
-        <Route path='/' element={<Layout />}>
-          <Route path='dashboard' element={<Dashboard />} />
-          <Route path='add-expense' element={<AddExpense />} />
-          <Route path='set-budget' element={<SetBudget />} />
-          <Route path='today-expenses' element={<TodayExpenses />} />
-          <Route path='reports' element={<Reports />} />
-          <Route path='account' element={<Account />} />
-        </Route>
-      </Routes>
-    </Router>
+    <ThemeProvider>
+      <Router>
+        <Routes>
+          <Route path='/' element={<Navigate to='/dashboard' replace />} />
+          <Route path='/' element={<Layout />}>
+            <Route path='dashboard' element={<Dashboard />} />
+            <Route path='add-expense' element={<AddExpense />} />
+            <Route path='set-budget' element={<SetBudget />} />
+            <Route path='today-expenses' element={<TodayExpenses />} />
+            <Route path='reports' element={<Reports />} />
+            <Route path='account' element={<Account />} />
+          </Route>
+        </Routes>
+      </Router>
+    </ThemeProvider>
   );
 }
 

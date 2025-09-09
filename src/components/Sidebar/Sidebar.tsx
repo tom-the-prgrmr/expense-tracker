@@ -1,5 +1,6 @@
 import { type FC } from 'react';
 import { Link } from 'react-router-dom';
+import ThemeSwitcher from '@/components/ThemeSwitcher/ThemeSwitcher';
 
 interface SidebarProps {
   activeTab: string;
@@ -41,12 +42,12 @@ const Sidebar: FC<SidebarProps> = ({ activeTab, onMobileMenuClose }) => {
   ];
 
   return (
-    <div className="w-full sm:w-56 md:w-64 bg-white shadow-lg border-r border-gray-200 min-h-screen sm:sticky sm:top-0">
+    <div className="w-full sm:w-56 md:w-64 card-glass border-r min-h-screen sm:sticky sm:top-0">
       <div className='p-3 sm:p-4 md:p-6'>
         <div className='mb-4 sm:mb-6 md:mb-8 hidden sm:block'>
-          <h2 className='text-base sm:text-lg md:text-xl font-bold text-gray-900 flex items-center gap-2'>
+          <h2 className='text-base sm:text-lg md:text-xl font-bold text-primary flex items-center gap-2'>
             <span className='text-xl sm:text-2xl'>💳</span>
-            Chi tiêu Portal
+            <span className='text-gradient'>Chi tiêu Portal</span>
           </h2>
         </div>
 
@@ -56,11 +57,16 @@ const Sidebar: FC<SidebarProps> = ({ activeTab, onMobileMenuClose }) => {
               key={item.id}
               to={`/${item.id}`}
               onClick={onMobileMenuClose}
-              className={`w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-left rounded-lg transition-all duration-200 ${
+              className={`w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-left rounded-xl transition-all duration-300 ${
                 activeTab === item.id
-                  ? 'bg-indigo-50 text-indigo-700 border-r-2 border-indigo-500'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  ? 'bg-gradient-to-r from-primary/20 to-secondary/20 text-primary border border-primary/30 shadow-lg'
+                  : 'text-secondary hover:bg-surface-secondary/50 hover:text-primary'
               }`}
+              style={{
+                backgroundColor: activeTab === item.id ? 'var(--theme-primary)' : 'transparent',
+                color: activeTab === item.id ? 'white' : 'var(--theme-text-secondary)',
+                borderColor: activeTab === item.id ? 'var(--theme-primary)' : 'transparent'
+              }}
             >
               <span className="text-base sm:text-lg flex-shrink-0">
                 {item.icon}
@@ -71,6 +77,16 @@ const Sidebar: FC<SidebarProps> = ({ activeTab, onMobileMenuClose }) => {
             </Link>
           ))}
         </nav>
+
+        {/* Theme Switcher for Desktop */}
+        <div className='hidden sm:block mt-6 pt-4' style={{ borderTop: '1px solid var(--theme-border)' }}>
+          <div className='px-2'>
+            <div className='text-xs font-semibold text-muted uppercase tracking-wider mb-2'>
+              Theme
+            </div>
+            <ThemeSwitcher />
+          </div>
+        </div>
       </div>
     </div>
   );
