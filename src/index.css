@@ -2,6 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide native date picker icon to avoid duplicate with custom icon */
+input.custom-date::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  display: none;
+}
+input.custom-date::-ms-clear,
+input.custom-date::-ms-reveal {
+  display: none;
+}
+input.custom-date::-webkit-inner-spin-button,
+input.custom-date::-webkit-clear-button {
+  display: none;
+}
+/* Firefox */
+input.custom-date::-moz-focus-inner {
+  border: 0;
+}
+
 :root {
   font-family: 'Nunito', sans-serif;
   line-height: 1.5;

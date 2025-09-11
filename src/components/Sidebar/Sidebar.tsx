@@ -1,6 +1,6 @@
+import ThemeSwitcher from '@/components/ThemeSwitcher/ThemeSwitcher';
 import { type FC } from 'react';
 import { Link } from 'react-router-dom';
-import ThemeSwitcher from '@/components/ThemeSwitcher/ThemeSwitcher';
 
 interface SidebarProps {
   activeTab: string;
@@ -26,7 +26,7 @@ const Sidebar: FC<SidebarProps> = ({ activeTab, onMobileMenuClose }) => {
     },
     {
       id: 'today-expenses',
-      label: 'Chi tiêu hôm nay',
+      label: 'Dữ liệu chi tiêu',
       icon: '📅',
     },
     {
@@ -42,7 +42,7 @@ const Sidebar: FC<SidebarProps> = ({ activeTab, onMobileMenuClose }) => {
   ];
 
   return (
-    <div className="w-full sm:w-56 md:w-64 card-glass border-r min-h-screen sm:sticky sm:top-0">
+    <div className='w-full sm:w-56 md:w-64 card-glass border-r min-h-screen sm:sticky sm:top-0'>
       <div className='p-3 sm:p-4 md:p-6'>
         <div className='mb-4 sm:mb-6 md:mb-8 hidden sm:block'>
           <h2 className='text-base sm:text-lg md:text-xl font-bold text-primary flex items-center gap-2'>
@@ -63,12 +63,21 @@ const Sidebar: FC<SidebarProps> = ({ activeTab, onMobileMenuClose }) => {
                   : 'text-secondary hover:bg-surface-secondary/50 hover:text-primary'
               }`}
               style={{
-                backgroundColor: activeTab === item.id ? 'var(--theme-primary)' : 'transparent',
-                color: activeTab === item.id ? 'white' : 'var(--theme-text-secondary)',
-                borderColor: activeTab === item.id ? 'var(--theme-primary)' : 'transparent'
+                backgroundColor:
+                  activeTab === item.id
+                    ? 'var(--theme-primary)'
+                    : 'transparent',
+                color:
+                  activeTab === item.id
+                    ? 'white'
+                    : 'var(--theme-text-secondary)',
+                borderColor:
+                  activeTab === item.id
+                    ? 'var(--theme-primary)'
+                    : 'transparent',
               }}
             >
-              <span className="text-base sm:text-lg flex-shrink-0">
+              <span className='text-base sm:text-lg flex-shrink-0'>
                 {item.icon}
               </span>
               <span className='text-xs sm:text-sm md:text-base font-medium whitespace-nowrap overflow-hidden'>
@@ -79,7 +88,10 @@ const Sidebar: FC<SidebarProps> = ({ activeTab, onMobileMenuClose }) => {
         </nav>
 
         {/* Theme Switcher for Desktop */}
-        <div className='hidden sm:block mt-6 pt-4' style={{ borderTop: '1px solid var(--theme-border)' }}>
+        <div
+          className='hidden sm:block mt-6 pt-4'
+          style={{ borderTop: '1px solid var(--theme-border)' }}
+        >
           <div className='px-2'>
             <div className='text-xs font-semibold text-muted uppercase tracking-wider mb-2'>
               Theme
