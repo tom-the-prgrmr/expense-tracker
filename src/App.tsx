@@ -1,6 +1,7 @@
 import Layout from '@/components/Layout/Layout';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import Account from '@/pages/Account/Account';
+import AddExpense from '@/pages/AddExpense/AddExpense';
 import Dashboard from '@/pages/Dashboard/Dashboard';
 import ExpenseCategories from '@/pages/ExpenseCategories/ExpenseCategories';
 import Reports from '@/pages/Reports/Reports';
@@ -23,6 +24,7 @@ const App: FC = () => {
           <Route path='/' element={<Navigate to='/dashboard' replace />} />
           <Route path='/' element={<Layout />}>
             <Route path='dashboard' element={<Dashboard />} />
+            <Route path='add-expense' element={<AddExpense />} />
             <Route path='today-expenses' element={<TodayExpenses />} />
             <Route path='expense-categories' element={<ExpenseCategories />} />
             <Route path='set-budget' element={<SetBudget />} />

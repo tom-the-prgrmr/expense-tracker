@@ -231,7 +231,10 @@ const ExpenseCategories: FC = () => {
 
       {isModalOpen && (
         <div className='fixed inset-0 z-[2000] flex items-center justify-center'>
-          <div className='absolute inset-0 bg-black/40' onClick={closeModal} />
+          <div
+            className='absolute inset-0 bg-black/40 modal-backdrop'
+            onClick={closeModal}
+          />
           <div className='relative w-[90%] max-w-md card-glass border p-4 sm:p-6'>
             <button
               className='absolute top-2 right-2 px-2 py-1 rounded-md'

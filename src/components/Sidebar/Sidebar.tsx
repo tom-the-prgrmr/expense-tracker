@@ -15,6 +15,11 @@ const Sidebar: FC<SidebarProps> = ({ activeTab, onMobileMenuClose }) => {
       icon: '📊',
     },
     {
+      id: 'add-expense',
+      label: 'Ghi nhận chi tiêu',
+      icon: '📝',
+    },
+    {
       id: 'today-expenses',
       label: 'Dữ liệu chi tiêu',
       icon: '📅',

@@ -1,10 +1,20 @@
 import Button from '@/components/Button/Button';
 import DataTable, { type Column } from '@/components/DataTable/DataTable';
 import DatePicker from '@/components/Form/DatePicker/DatePicker';
+import Dropdown, {
+  type DropdownOption,
+} from '@/components/Form/Dropdown/Dropdown';
+import TextInput from '@/components/Form/TextInput/TextInput';
 import PageLayout from '@/components/PageLayout/PageLayout';
+import { useToast } from '@/components/Toast/useToast';
 import { apiFetch } from '@/config/api';
 import { useApiQuery } from '@/hooks/useApiQuery';
-import { type MoneyNoteDto, type MoneyNotesResponse } from '@/types/api';
+import {
+  type CategoriesResponse,
+  type CategoryDto,
+  type MoneyNoteDto,
+  type MoneyNotesResponse,
+} from '@/types/api';
 import {
   formatCurrencyVND,
   formatDateLocalYYYYMMDD,
@@ -48,12 +58,12 @@ const TodayExpenses: FC = () => {
     setAppliedEnd(localDateToEndOfDayEpochSeconds(end));
   }, [startInput, endInput]);
 
-  const { data, isLoading, isError, error } = useApiQuery({
+  const { data, isLoading, isError, error, refetch } = useApiQuery({
     queryKey: ['today-money-notes', appliedStart, appliedEnd],
     queryFn: async () => {
       try {
         return await apiFetch<MoneyNotesResponse>(
-          `/api/v1/money-note?start_date=${appliedStart}&end_date=${appliedEnd}&category_id=2`
+          `/api/v1/money-note?start_date=${appliedStart}&end_date=${appliedEnd}`
         );
       } catch (err) {
         if (err instanceof Error) {
@@ -88,6 +98,142 @@ const TodayExpenses: FC = () => {
   });
 
   const items: MoneyNoteDto[] = data?.data ?? [];
+
+  // Modal state for creating expense notes (support multiple rows)
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  type DraftNote = { note: string; amount: string; categoryId: number | '' };
+  const [draftNotes, setDraftNotes] = useState<DraftNote[]>([]);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const toast = useToast();
+
+  // Fetch categories for dropdown (active only)
+  const { data: categoriesData } = useApiQuery({
+    queryKey: ['categories-active'],
+    queryFn: async () => {
+      return await apiFetch<CategoriesResponse>('/api/v1/category?status=2');
+    },
+    loadingMessage: undefined,
+    staleTime: Infinity,
+    gcTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    retry: 0,
+    enabled: isModalOpen,
+  });
+
+  const categoryOptions: DropdownOption[] = useMemo(() => {
+    const list: CategoryDto[] = categoriesData?.data ?? [];
+    return list
+      .filter((c) => c.type === 1)
+      .map((c) => ({ value: c.id, label: c.name }));
+  }, [categoriesData]);
+
+  const openModal = useCallback(() => {
+    setDraftNotes([{ note: '', amount: '', categoryId: '' as never }]);
+    setFormError(null);
+    setIsModalOpen(true);
+  }, []);
+
+  const closeModal = useCallback(() => {
+    if (isSaving) return; // prevent closing while saving
+    setIsModalOpen(false);
+  }, [isSaving]);
+
+  const onSave = useCallback(async () => {
+    // Validate all rows
+    if (!draftNotes.length) {
+      setFormError('Vui lòng thêm ít nhất một dòng.');
+      return;
+    }
+    const payload: Array<{
+      type: number;
+      note: string;
+      amount: number;
+      category_id: number;
+    }> = [];
+    for (let i = 0; i < draftNotes.length; i++) {
+      const row = draftNotes[i];
+      const note = row.note.trim();
+      const amountNum = Number(row.amount);
+      if (!note) {
+        setFormError(`Dòng ${i + 1}: Ghi chú không được để trống.`);
+        return;
+      }
+      if (!row.amount || Number.isNaN(amountNum) || amountNum <= 0) {
+        setFormError(`Dòng ${i + 1}: Số tiền phải là số dương.`);
+        return;
+      }
+      if (!row.categoryId) {
+        setFormError(`Dòng ${i + 1}: Vui lòng chọn danh mục.`);
+        return;
+      }
+      payload.push({
+        type: 1,
+        note,
+        amount: amountNum,
+        category_id: row.categoryId as number,
+      });
+    }
+
+    setFormError(null);
+
+    setIsSaving(true);
+    try {
+      await apiFetch<MoneyNotesResponse>('/api/v1/money-note', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      toast.showSuccess('Thêm khoản chi tiêu thành công');
+      setIsModalOpen(false);
+      await refetch();
+    } catch (err) {
+      let message = 'Không thể lưu khoản chi tiêu.';
+      if (err instanceof Error && err.message) {
+        try {
+          const parsed = JSON.parse(err.message);
+          if (parsed?.message) message = parsed.message;
+        } catch {
+          message = err.message;
+        }
+      }
+      setFormError(message);
+      toast.showError(message);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [draftNotes, toast, refetch]);
+
+  const updateRow = useCallback(
+    (index: number, field: keyof DraftNote, value: string | number) => {
+      setDraftNotes((prev) => {
+        const next = [...prev];
+        const row = { ...next[index] };
+        if (field === 'categoryId') {
+          row.categoryId = Number(value) as number;
+        } else if (field === 'amount') {
+          row.amount = String(value);
+        } else if (field === 'note') {
+          row.note = String(value);
+        }
+        next[index] = row;
+        return next;
+      });
+    },
+    []
+  );
+
+  const addRow = useCallback(() => {
+    setDraftNotes((prev) => [
+      ...prev,
+      { note: '', amount: '', categoryId: '' as never },
+    ]);
+  }, []);
+
+  const removeRow = useCallback((index: number) => {
+    setDraftNotes((prev) => prev.filter((_, i) => i !== index));
+  }, []);
 
   return (
     <PageLayout
@@ -132,9 +278,19 @@ const TodayExpenses: FC = () => {
           <h3 className='text-base font-semibold text-gray-900 dark:text-gray-100'>
             Danh sách chi tiêu
           </h3>
-          <span className='text-sm text-gray-500 dark:text-gray-400'>
-            Hôm nay
-          </span>
+          <div className='flex items-center gap-3'>
+            <span className='text-sm text-gray-500 dark:text-gray-400'>
+              Hôm nay
+            </span>
+            <Button
+              onClick={openModal}
+              variant='primary'
+              size='sm'
+              leadingIcon={'＋'}
+            >
+              Thêm chi tiêu
+            </Button>
+          </div>
         </div>
 
         {isError ? (
@@ -157,7 +313,8 @@ const TodayExpenses: FC = () => {
                         2,
                         '0'
                       )}:${String(date.getMinutes()).padStart(2, '0')}`;
-                      return <span>{time}</span>;
+                      const dateStr = formatDateLocalYYYYMMDD(date);
+                      return <span>{`${dateStr} ${time}`}</span>;
                     },
                   },
                   {
@@ -208,6 +365,127 @@ const TodayExpenses: FC = () => {
           </div>
         )}
       </div>
+
+      {isModalOpen ? (
+        <div className='fixed inset-0 z-50 flex items-center justify-center'>
+          <div
+            className='absolute inset-0 bg-black/50 modal-backdrop'
+            onClick={closeModal}
+          />
+          <div className='relative z-10 w-full max-w-lg mx-4 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 max-h-[50vh] flex flex-col'>
+            <div className='flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800'>
+              <h4 className='text-base font-semibold text-gray-900 dark:text-gray-100'>
+                Thêm khoản chi tiêu
+              </h4>
+              <button
+                aria-label='Đóng'
+                className='text-xl px-2 py-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                onClick={closeModal}
+              >
+                ×
+              </button>
+            </div>
+            <div className='px-5 py-4 space-y-4 overflow-y-auto min-h-0 flex-1'>
+              {draftNotes.map((row, idx) => (
+                <div
+                  key={idx}
+                  className='rounded-xl border border-gray-200 dark:border-gray-800 p-4 space-y-3'
+                >
+                  <div className='flex items-center justify-between'>
+                    <span className='text-sm text-muted'>Dòng {idx + 1}</span>
+                    {draftNotes.length > 1 ? (
+                      <button
+                        type='button'
+                        className='text-sm text-red-500 hover:text-red-400'
+                        onClick={() => removeRow(idx)}
+                      >
+                        Xóa
+                      </button>
+                    ) : null}
+                  </div>
+                  <div>
+                    <label
+                      htmlFor={`note-input-${idx}`}
+                      className='block mb-1.5 text-sm font-medium text-secondary'
+                    >
+                      Ghi chú<span className='text-accent-red ml-1'>*</span>
+                    </label>
+                    <textarea
+                      id={`note-input-${idx}`}
+                      value={row.note}
+                      onChange={(e) => updateRow(idx, 'note', e.target.value)}
+                      placeholder='Ví dụ: đi chợ mua cá'
+                      className={
+                        `w-full px-3.5 py-2.5 rounded-xl outline-none transition-colors ` +
+                        `bg-white text-gray-900 ` +
+                        `dark:bg-[var(--theme-surface-secondary,#334155)] dark:text-[var(--theme-text,#ffffff)] ` +
+                        `placeholder:text-gray-400 dark:placeholder:text-[var(--theme-text-muted,#94a3b8)] ` +
+                        `border border-gray-300 dark:border-[var(--theme-border,#475569)] ` +
+                        `focus:border-[var(--theme-primary,#3b82f6)] ` +
+                        `max-h-32 overflow-y-auto`
+                      }
+                      rows={3}
+                    />
+                  </div>
+                  <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+                    <TextInput
+                      id={`amount-input-${idx}`}
+                      label='Số tiền'
+                      type='number'
+                      inputMode='numeric'
+                      className='no-spinner'
+                      value={row.amount}
+                      onChange={(e) =>
+                        updateRow(
+                          idx,
+                          'amount',
+                          e.target.value.replace(/[^0-9]/g, '')
+                        )
+                      }
+                      placeholder='Ví dụ: 100000'
+                      required
+                    />
+                    <Dropdown
+                      id={`category-select-${idx}`}
+                      label='Danh mục'
+                      options={categoryOptions}
+                      className='dropdown-rounded'
+                      value={row.categoryId as number | ''}
+                      onChange={(e) =>
+                        updateRow(idx, 'categoryId', Number(e.target.value))
+                      }
+                      placeholder='Chọn danh mục'
+                      required
+                    />
+                  </div>
+                </div>
+              ))}
+              <div className='flex justify-between items-center'>
+                {formError ? (
+                  <p className='text-accent-red text-sm'>{formError}</p>
+                ) : (
+                  <span />
+                )}
+                <Button variant='secondary' size='sm' onClick={addRow}>
+                  + Thêm dòng
+                </Button>
+              </div>
+            </div>
+            <div className='flex items-center justify-end gap-3 px-5 py-4 border-t border-gray-200 dark:border-gray-800'>
+              <Button
+                variant='secondary'
+                onClick={closeModal}
+                disabled={isSaving}
+              >
+                Hủy
+              </Button>
+              <Button variant='primary' onClick={onSave} disabled={isSaving}>
+                {isSaving ? 'Đang lưu...' : 'Lưu'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </PageLayout>
   );
 };

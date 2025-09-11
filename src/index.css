@@ -134,6 +134,26 @@ input.custom-date::-moz-focus-inner {
   .text-muted {
     color: var(--theme-text-muted, #94a3b8);
   }
+
+  /* Reusable modal backdrop blur */
+  .modal-backdrop {
+    @apply backdrop-blur-sm;
+  }
+
+  /* Hide spinner arrows for number inputs when using .no-spinner */
+  input.no-spinner[type='number']::-webkit-outer-spin-button,
+  input.no-spinner[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input.no-spinner[type='number'] {
+    -moz-appearance: textfield; /* Firefox */
+  }
+
+  /* Keep rounded corners when native select is focused/open */
+  select.dropdown-rounded:focus {
+    border-radius: 0.75rem; /* matches rounded-xl */
+  }
 }
 
 /* Marquee animation for banners */
