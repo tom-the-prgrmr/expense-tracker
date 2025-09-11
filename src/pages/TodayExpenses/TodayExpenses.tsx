@@ -93,7 +93,7 @@ const TodayExpenses: FC = () => {
     <PageLayout
       title='Dữ liệu chi tiêu'
       icon='📅'
-      subtitle='Xem và quản lý các khoản chi tiêu trong ngày'
+      subtitle='Xem và quản lý các khoản chi tiêu'
     >
       {/* Filters outside the table/card */}
       <div className='mb-4 px-1 sm:px-0'>
