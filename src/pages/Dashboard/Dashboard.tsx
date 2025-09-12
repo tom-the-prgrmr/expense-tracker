@@ -1,3 +1,4 @@
+import { AddExpenseModal } from '@/components/AddExpenseModal';
 import PieChart from '@/components/Charts/PieChart';
 import RadialProgress from '@/components/Charts/RadialProgress';
 import PageLayout from '@/components/PageLayout/PageLayout';
@@ -20,11 +21,14 @@ import {
   localDateToEpochSeconds,
   parseEpochSecondsOrIsoToDate,
 } from '@/utils/date';
-import { type FC, useMemo } from 'react';
+import { type FC, useMemo, useState } from 'react';
 
 type MoneyNote = MoneyNoteDto;
 
 const Dashboard: FC = () => {
+  // Modal state
+  const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
+
   // Placeholder data; replace with real data later
   const limitAmount = 5000000; // hạn mức ngày (VND)
   const spentToday = 1200000; // đã chi hôm nay
@@ -397,7 +401,10 @@ const Dashboard: FC = () => {
                   ₫
                 </span>
               </div>
-              <button className='btn-primary px-2.5 py-1.5 sm:px-3 text-xs sm:text-sm'>
+              <button
+                className='btn-primary px-2.5 py-1.5 sm:px-3 text-xs sm:text-sm'
+                onClick={() => setIsAddExpenseModalOpen(true)}
+              >
                 + Thêm chi tiêu
               </button>
             </div>
@@ -588,6 +595,12 @@ const Dashboard: FC = () => {
           </div>
         </section>
       </div>
+
+      {/* Add Expense Modal */}
+      <AddExpenseModal
+        isOpen={isAddExpenseModalOpen}
+        onClose={() => setIsAddExpenseModalOpen(false)}
+      />
     </PageLayout>
   );
 };
