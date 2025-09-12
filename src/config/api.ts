@@ -15,12 +15,16 @@ export async function apiFetch<T>(
   init?: RequestInit
 ): Promise<T> {
   const url = `${apiConfig.baseUrl}${path}`;
+
+  const isFormData = init?.body instanceof FormData;
+  const mergedHeaders: Record<string, string> = {
+    ...(isFormData ? {} : apiConfig.defaultHeaders),
+    ...((init?.headers as Record<string, string>) ?? {}),
+  };
+
   const res = await fetch(url, {
     ...init,
-    headers: {
-      ...apiConfig.defaultHeaders,
-      ...(init?.headers ?? {}),
-    },
+    headers: mergedHeaders,
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
