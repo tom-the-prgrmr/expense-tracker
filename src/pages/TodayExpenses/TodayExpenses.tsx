@@ -89,11 +89,11 @@ const TodayExpenses: FC = () => {
       }
     },
     loadingMessage: 'Đang tải chi tiêu hôm nay...',
-    staleTime: Infinity,
-    gcTime: Infinity,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
+    refetchOnReconnect: true,
+    refetchOnMount: true,
     retry: 1,
   });
 

@@ -45,7 +45,7 @@ const Dashboard: FC = () => {
     queryFn: async () => {
       try {
         return await apiFetch<MoneyNotesResponse>(
-          `/api/v1/money-note?start_date=${startDate}&end_date=${endDate}&category_id=2`
+          `/api/v1/money-note?start_date=${startDate}&end_date=${endDate}`
         );
       } catch (error) {
         // Try to parse error message from API response
@@ -72,11 +72,11 @@ const Dashboard: FC = () => {
       }
     },
     loadingMessage: 'Đang tải chi tiêu hôm nay...',
-    staleTime: Infinity,
-    gcTime: Infinity,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
+    refetchOnReconnect: true,
+    refetchOnMount: true,
     retry: 1,
   });
 
@@ -115,11 +115,11 @@ const Dashboard: FC = () => {
       }
     },
     loadingMessage: 'Đang tải danh mục...',
-    staleTime: Infinity,
-    gcTime: Infinity,
+    staleTime: 10 * 60 * 1000, // 10 minutes (categories change less frequently)
+    gcTime: 30 * 60 * 1000, // 30 minutes
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
+    refetchOnReconnect: true,
+    refetchOnMount: true,
     retry: 1,
   });
 
@@ -139,7 +139,7 @@ const Dashboard: FC = () => {
     queryFn: async () => {
       try {
         return await apiFetch<MoneyNotesResponse>(
-          `/api/v1/money-note?start_date=${monthlyStartDate}&end_date=${monthlyEndDate}&category_id=2`
+          `/api/v1/money-note?start_date=${monthlyStartDate}&end_date=${monthlyEndDate}`
         );
       } catch (error) {
         if (error instanceof Error) {
@@ -165,11 +165,11 @@ const Dashboard: FC = () => {
       }
     },
     loadingMessage: 'Đang tải dữ liệu chi tiêu tháng...',
-    staleTime: Infinity,
-    gcTime: Infinity,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
+    refetchOnReconnect: true,
+    refetchOnMount: true,
     retry: 1,
   });
 

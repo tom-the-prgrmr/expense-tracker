@@ -1,6 +1,7 @@
 import PageLayout from '@/components/PageLayout/PageLayout';
 import { apiFetch } from '@/config/api';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { useQueryInvalidation } from '@/hooks/useQueryInvalidation';
 import { type CategoriesResponse } from '@/types/api';
 import { type FC, useCallback, useMemo, useRef, useState } from 'react';
 
@@ -77,6 +78,7 @@ const AddExpense: FC = () => {
   const [inputValue, setInputValue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const listEndRef = useRef<HTMLDivElement | null>(null);
+  const { invalidateMoneyNotes } = useQueryInvalidation();
 
   // Fetch categories for mapping IDs to names
   const { data: categoriesData } = useApiQuery({
@@ -318,6 +320,10 @@ const AddExpense: FC = () => {
               method: 'POST',
               body: JSON.stringify(payload),
             });
+
+            // Invalidate money notes queries to refresh dashboard and other pages
+            invalidateMoneyNotes();
+
             updateMessages((prev) => [
               ...prev,
               {
@@ -365,7 +371,7 @@ const AddExpense: FC = () => {
         setTimeout(scrollToBottom, 0);
       }
     },
-    [scrollToBottom, updateMessages]
+    [scrollToBottom, updateMessages, invalidateMoneyNotes]
   );
 
   const onSend = useCallback(() => {

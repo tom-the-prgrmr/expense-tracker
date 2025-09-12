@@ -15,11 +15,11 @@ const ExpenseCategories: FC = () => {
     queryFn: async () =>
       apiFetch<CategoriesResponse>('/api/v1/category?status=2'),
     loadingMessage: 'Đang tải danh mục...',
-    staleTime: Infinity,
-    gcTime: Infinity,
+    staleTime: 10 * 60 * 1000, // 10 minutes (categories change less frequently)
+    gcTime: 30 * 60 * 1000, // 30 minutes
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
+    refetchOnReconnect: true,
+    refetchOnMount: true,
   });
 
   const items: CategoryDto[] = useMemo(() => data?.data ?? [], [data]);
