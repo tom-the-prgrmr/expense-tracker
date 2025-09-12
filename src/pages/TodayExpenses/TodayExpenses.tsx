@@ -342,6 +342,11 @@ const TodayExpenses: FC = () => {
                 ] as Column<MoneyNoteDto>[]
               }
               data={items}
+              enablePagination={true}
+              pageSize={20}
+              showPaginationInfo={true}
+              showPageSizeDropdown={true}
+              pageSizeOptions={[10, 20, 50, 100]}
               isLoading={isLoading}
               rowKey={(row) => (row as MoneyNoteDto).id}
               emptyState={

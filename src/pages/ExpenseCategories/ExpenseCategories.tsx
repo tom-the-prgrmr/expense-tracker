@@ -205,6 +205,11 @@ const ExpenseCategories: FC = () => {
             <DataTable
               columns={columns}
               data={items}
+              enablePagination={true}
+              pageSize={15}
+              showPaginationInfo={true}
+              showPageSizeDropdown={true}
+              pageSizeOptions={[10, 20, 50, 100]}
               isLoading={isLoading}
               rowKey={(row) => (row as CategoryDto).id}
               emptyState={

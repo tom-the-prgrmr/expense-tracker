@@ -1,3 +1,6 @@
+import { PageSizeDropdown } from '@/components/PageSizeDropdown';
+import { Pagination } from '@/components/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 import { type ReactNode, memo } from 'react';
 
 export interface Column<T> {
@@ -18,6 +21,12 @@ interface DataTableProps<T> {
   maxHeight?: number;
   enableScroll?: boolean;
   responsiveHeight?: boolean;
+  // Pagination options
+  enablePagination?: boolean;
+  pageSize?: number;
+  showPaginationInfo?: boolean;
+  showPageSizeDropdown?: boolean;
+  pageSizeOptions?: number[];
 }
 
 const cellAlignClass = (align?: 'left' | 'right' | 'center') => {
@@ -36,6 +45,11 @@ const DataTableInner = <T,>({
   maxHeight = 240, // 15rem equivalent
   enableScroll = true,
   responsiveHeight = true,
+  enablePagination = false,
+  pageSize = 20,
+  showPaginationInfo = true,
+  showPageSizeDropdown = true,
+  pageSizeOptions = [10, 20, 50, 100],
 }: DataTableProps<T>) => {
   const getCellValue = (row: T, key: keyof T | string): ReactNode => {
     if (typeof key === 'string') {
@@ -45,7 +59,16 @@ const DataTableInner = <T,>({
     const value = row[key] as unknown as ReactNode;
     return value ?? '';
   };
-  const shouldScroll = enableScroll && data.length > 10;
+
+  // Pagination logic
+  const pagination = usePagination({
+    totalItems: data.length,
+    pageSize,
+    maxVisiblePages: 5,
+  });
+
+  const displayData = enablePagination ? pagination.getPageData(data) : data;
+  const shouldScroll = enableScroll && displayData.length > 10;
 
   return (
     <div className={className}>
@@ -108,7 +131,7 @@ const DataTableInner = <T,>({
                 </td>
               </tr>
             ) : (
-              data.map((row, idx) => (
+              displayData.map((row, idx) => (
                 <tr
                   key={rowKey(row, idx)}
                   className='transition-colors'
@@ -143,6 +166,72 @@ const DataTableInner = <T,>({
           </tbody>
         </table>
       </div>
+
+      {/* Page Size Dropdown and Pagination */}
+      {enablePagination && (
+        <div className='border-t border-dark-600/30 pt-4 mt-4'>
+          {/* Mobile Layout */}
+          <div className='flex flex-col gap-4 sm:hidden'>
+            {/* Page Size Dropdown */}
+            {showPageSizeDropdown && (
+              <div className='flex justify-center'>
+                <PageSizeDropdown
+                  currentPageSize={pagination.pageSize}
+                  onPageSizeChange={pagination.setPageSize}
+                  options={pageSizeOptions}
+                />
+              </div>
+            )}
+
+            {/* Pagination */}
+            <Pagination
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              onPageChange={pagination.goToPage}
+              paginationItems={pagination.paginationItems}
+              hasNextPage={pagination.hasNextPage}
+              hasPreviousPage={pagination.hasPreviousPage}
+              onNextPage={pagination.goToNextPage}
+              onPreviousPage={pagination.goToPreviousPage}
+              showInfo={showPaginationInfo}
+              totalItems={pagination.totalItems}
+              pageSize={pagination.pageSize}
+              startIndex={pagination.startIndex}
+              endIndex={pagination.endIndex}
+            />
+          </div>
+
+          {/* Desktop Layout */}
+          <div className='hidden sm:flex sm:items-center sm:justify-between sm:gap-6'>
+            {/* Page Size Dropdown */}
+            {showPageSizeDropdown && (
+              <PageSizeDropdown
+                currentPageSize={pagination.pageSize}
+                onPageSizeChange={pagination.setPageSize}
+                options={pageSizeOptions}
+              />
+            )}
+
+            {/* Pagination */}
+            <Pagination
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              onPageChange={pagination.goToPage}
+              paginationItems={pagination.paginationItems}
+              hasNextPage={pagination.hasNextPage}
+              hasPreviousPage={pagination.hasPreviousPage}
+              onNextPage={pagination.goToNextPage}
+              onPreviousPage={pagination.goToPreviousPage}
+              showInfo={showPaginationInfo}
+              totalItems={pagination.totalItems}
+              pageSize={pagination.pageSize}
+              startIndex={pagination.startIndex}
+              endIndex={pagination.endIndex}
+              className={showPageSizeDropdown ? 'flex-1' : ''}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

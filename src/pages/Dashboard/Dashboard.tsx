@@ -1,9 +1,12 @@
 import PieChart from '@/components/Charts/PieChart';
 import RadialProgress from '@/components/Charts/RadialProgress';
 import PageLayout from '@/components/PageLayout/PageLayout';
+import { PageSizeDropdown } from '@/components/PageSizeDropdown';
+import { Pagination } from '@/components/Pagination';
 import { apiFetch } from '@/config/api';
 import { PIE_CHART_COLORS } from '@/constants/charts';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { usePagination } from '@/hooks/usePagination';
 import {
   type CategoriesResponse,
   type CategoryDto,
@@ -17,7 +20,7 @@ import {
   localDateToEpochSeconds,
   parseEpochSecondsOrIsoToDate,
 } from '@/utils/date';
-import { type FC, useMemo, useState } from 'react';
+import { type FC, useMemo } from 'react';
 
 type MoneyNote = MoneyNoteDto;
 
@@ -195,13 +198,13 @@ const Dashboard: FC = () => {
   }, [moneyNotesData]);
 
   // Pagination for Today Expenses
-  const [todayPage, setTodayPage] = useState(1);
   const pageSize = 4;
-  const totalTodayPages = Math.max(1, Math.ceil(todayList.length / pageSize));
-  const startIdx = (todayPage - 1) * pageSize;
-  const pagedTodayList = todayList.slice(startIdx, startIdx + pageSize);
-  const goTodayPage = (p: number) =>
-    setTodayPage(Math.min(Math.max(1, p), totalTodayPages));
+  const todayPagination = usePagination({
+    totalItems: todayList.length,
+    pageSize,
+    maxVisiblePages: 5,
+  });
+  const pagedTodayList = todayPagination.getPageData(todayList);
 
   // Generate pie chart data from categories API with real percentage calculation
   const categories = useMemo(() => {
@@ -339,7 +342,7 @@ const Dashboard: FC = () => {
                     Đã chi
                   </div>
                   <div className='text-base sm:text-lg font-bold text-primary text-gradient leading-tight text-center'>
-                    {spentToday.toLocaleString('vi-VN')}₫
+                    {monthlySummary.monthTotal.toLocaleString('vi-VN')}₫
                   </div>
                   <div className='text-[10px] sm:text-[11px] text-muted'>
                     {spentPercent.toFixed(0)}%
@@ -360,7 +363,7 @@ const Dashboard: FC = () => {
                 <div className='card-glass p-3 sm:p-4 flex-1'>
                   <div className='text-xs text-muted mb-1'>Đã chi</div>
                   <div className='text-base sm:text-lg font-bold text-primary text-gradient leading-tight'>
-                    {spentToday.toLocaleString('vi-VN')}₫
+                    {monthlySummary.monthTotal.toLocaleString('vi-VN')}₫
                   </div>
                 </div>
               </div>
@@ -434,39 +437,64 @@ const Dashboard: FC = () => {
               ))
             )}
           </div>
-          {/* Pagination controls */}
-          <div className='flex items-center justify-between pt-3'>
-            <button
-              className='btn-secondary px-3 py-1.5 text-sm disabled:opacity-50'
-              onClick={() => goTodayPage(todayPage - 1)}
-              disabled={todayPage === 1}
-            >
-              Trước
-            </button>
-            <div className='flex items-center gap-1'>
-              {Array.from({ length: totalTodayPages }, (_, i) => i + 1).map(
-                (p) => (
-                  <button
-                    key={p}
-                    className={`w-8 h-8 rounded-md text-sm border ${
-                      p === todayPage
-                        ? 'bg-gradient-to-r from-accent-blue to-accent-purple text-white border-transparent'
-                        : 'bg-dark-700/50 text-gray-300 border-dark-600 hover:bg-dark-600/50'
-                    }`}
-                    onClick={() => goTodayPage(p)}
-                  >
-                    {p}
-                  </button>
-                )
-              )}
+          {/* Page Size Dropdown and Pagination controls */}
+          <div className='border-t border-dark-600/30 pt-4 mt-4'>
+            {/* Mobile Layout */}
+            <div className='flex flex-col gap-4 sm:hidden'>
+              {/* Page Size Dropdown */}
+              <div className='flex justify-center'>
+                <PageSizeDropdown
+                  currentPageSize={todayPagination.pageSize}
+                  onPageSizeChange={todayPagination.setPageSize}
+                  options={[10, 20, 50, 100]}
+                />
+              </div>
+
+              {/* Pagination */}
+              <Pagination
+                currentPage={todayPagination.currentPage}
+                totalPages={todayPagination.totalPages}
+                onPageChange={todayPagination.goToPage}
+                paginationItems={todayPagination.paginationItems}
+                hasNextPage={todayPagination.hasNextPage}
+                hasPreviousPage={todayPagination.hasPreviousPage}
+                onNextPage={todayPagination.goToNextPage}
+                onPreviousPage={todayPagination.goToPreviousPage}
+                showInfo={true}
+                totalItems={todayPagination.totalItems}
+                pageSize={todayPagination.pageSize}
+                startIndex={todayPagination.startIndex}
+                endIndex={todayPagination.endIndex}
+              />
             </div>
-            <button
-              className='btn-secondary px-3 py-1.5 text-sm disabled:opacity-50'
-              onClick={() => goTodayPage(todayPage + 1)}
-              disabled={todayPage === totalTodayPages}
-            >
-              Sau
-            </button>
+
+            {/* Desktop Layout */}
+            <div className='hidden sm:flex sm:items-center sm:justify-between sm:gap-6'>
+              {/* Page Size Dropdown */}
+              <PageSizeDropdown
+                currentPageSize={todayPagination.pageSize}
+                onPageSizeChange={todayPagination.setPageSize}
+                options={[10, 20, 50, 100]}
+              />
+
+              {/* Pagination */}
+              <Pagination
+                currentPage={todayPagination.currentPage}
+                totalPages={todayPagination.totalPages}
+                onPageChange={todayPagination.goToPage}
+                paginationItems={todayPagination.paginationItems}
+                hasNextPage={todayPagination.hasNextPage}
+                hasPreviousPage={todayPagination.hasPreviousPage}
+                onNextPage={todayPagination.goToNextPage}
+                onPreviousPage={todayPagination.goToPreviousPage}
+                showInfo={true}
+                totalItems={todayPagination.totalItems}
+                pageSize={todayPagination.pageSize}
+                startIndex={todayPagination.startIndex}
+                endIndex={todayPagination.endIndex}
+                className='flex-1'
+              />
+            </div>
           </div>
         </section>
 
