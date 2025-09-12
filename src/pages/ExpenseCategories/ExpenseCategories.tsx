@@ -27,6 +27,12 @@ const ExpenseCategories: FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+  // Edit category modal state
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<CategoryDto | null>(
+    null
+  );
   const toast = useToast();
 
   const openModal = useCallback(() => {
@@ -37,6 +43,18 @@ const ExpenseCategories: FC = () => {
 
   const closeModal = useCallback(() => {
     setIsModalOpen(false);
+  }, []);
+
+  const openEditModal = useCallback((category: CategoryDto) => {
+    setSelectedCategory(category);
+    setEditName(category.name ?? '');
+    setFormError(null);
+    setIsEditOpen(true);
+  }, []);
+
+  const closeEditModal = useCallback(() => {
+    setIsEditOpen(false);
+    setSelectedCategory(null);
   }, []);
 
   const onAdd = useCallback(async () => {
@@ -102,9 +120,47 @@ const ExpenseCategories: FC = () => {
     [refetch, toast]
   );
 
+  const onUpdate = useCallback(async () => {
+    const value = editName.trim();
+    if (!value) {
+      setFormError('Tên danh mục không được để trống.');
+      return;
+    }
+    if (value.length > 20) {
+      setFormError('Tên danh mục không vượt quá 20 ký tự.');
+      return;
+    }
+    if (!selectedCategory) return;
+
+    setFormError(null);
+    try {
+      await apiFetch<CategoriesResponse>(
+        `/api/v1/category/${selectedCategory.id}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({ type: 1, name: value }),
+        }
+      );
+      toast.showSuccess('Cập nhật danh mục thành công');
+      closeEditModal();
+      await refetch();
+    } catch (err) {
+      let message = 'Không thể cập nhật danh mục.';
+      if (err instanceof Error) {
+        try {
+          const parsed = JSON.parse(err.message);
+          if (parsed?.message) message = parsed.message;
+        } catch {
+          if (err.message) message = err.message;
+        }
+      }
+      setFormError(message);
+      toast.showError(message);
+    }
+  }, [editName, selectedCategory, closeEditModal, refetch, toast]);
+
   const columns = useMemo(() => {
     return [
-      { key: 'id', header: 'ID', align: 'left' },
       { key: 'name', header: 'Tên danh mục', align: 'left' },
       {
         key: 'type',
@@ -160,14 +216,23 @@ const ExpenseCategories: FC = () => {
         render: (row) => {
           const r = row as CategoryDto;
           return (
-            <Button size='sm' variant='danger' onClick={() => onDelete(r)}>
-              Xóa
-            </Button>
+            <div className='flex items-center justify-end gap-2'>
+              <Button
+                size='sm'
+                variant='secondary'
+                onClick={() => openEditModal(r)}
+              >
+                Cập nhật
+              </Button>
+              <Button size='sm' variant='danger' onClick={() => onDelete(r)}>
+                Xóa
+              </Button>
+            </div>
           );
         },
       },
     ] as Column<CategoryDto>[];
-  }, [onDelete]);
+  }, [onDelete, openEditModal]);
 
   return (
     <PageLayout
@@ -262,7 +327,13 @@ const ExpenseCategories: FC = () => {
               type='text'
               value={nameInput}
               onChange={(e) => setNameInput(e.target.value)}
-              className='w-full px-3 py-2 rounded-lg border'
+              className={
+                `w-full px-3.5 py-2.5 rounded-xl outline-none transition-colors ` +
+                `bg-[var(--theme-surface,#ffffff)] text-[var(--theme-text,#0f172a)] ` +
+                `placeholder:text-[var(--theme-text-muted,#64748b)] ` +
+                `border border-[var(--theme-border,#e2e8f0)] ` +
+                `focus:border-[var(--theme-primary,#3b82f6)]`
+              }
               placeholder='Nhập tên danh mục (tối đa 20 ký tự)'
               maxLength={50}
             />
@@ -284,6 +355,68 @@ const ExpenseCategories: FC = () => {
               </Button>
               <Button onClick={onAdd} variant='primary' size='sm'>
                 Thêm
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isEditOpen && selectedCategory && (
+        <div className='fixed inset-0 z-[2000] flex items-center justify-center'>
+          <div
+            className='absolute inset-0 bg-black/40 modal-backdrop'
+            onClick={closeEditModal}
+          />
+          <div className='relative w-[90%] max-w-md card-glass border p-4 sm:p-6'>
+            <button
+              className='absolute top-2 right-2 px-2 py-1 rounded-md'
+              style={{
+                backgroundColor: 'transparent',
+                color: 'var(--theme-text)',
+              }}
+              onClick={closeEditModal}
+              aria-label='Đóng'
+            >
+              ✕
+            </button>
+            <h4 className='text-lg font-semibold mb-4'>Cập nhật danh mục</h4>
+
+            <label htmlFor='edit-category-name' className='text-sm mb-1 block'>
+              Tên danh mục
+            </label>
+            <input
+              id='edit-category-name'
+              type='text'
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              className={
+                `w-full px-3.5 py-2.5 rounded-xl outline-none transition-colors ` +
+                `bg-[var(--theme-surface,#ffffff)] text-[var(--theme-text,#0f172a)] ` +
+                `placeholder:text-[var(--theme-text-muted,#64748b)] ` +
+                `border border-[var(--theme-border,#e2e8f0)] ` +
+                `focus:border-[var(--theme-primary,#3b82f6)]`
+              }
+              placeholder='Nhập tên danh mục (tối đa 20 ký tự)'
+              maxLength={50}
+            />
+            <div
+              className='text-xs mt-1'
+              style={{ color: 'var(--theme-text-secondary)' }}
+            >
+              Tối đa 20 ký tự
+            </div>
+            {formError && (
+              <div className='mt-2 text-sm text-red-600 dark:text-red-400'>
+                {formError}
+              </div>
+            )}
+
+            <div className='mt-6 flex items-center justify-end gap-2'>
+              <Button onClick={closeEditModal} variant='secondary' size='sm'>
+                Hủy
+              </Button>
+              <Button onClick={onUpdate} variant='primary' size='sm'>
+                Lưu
               </Button>
             </div>
           </div>

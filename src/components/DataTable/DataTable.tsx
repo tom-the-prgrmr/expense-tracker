@@ -69,6 +69,7 @@ const DataTableInner = <T,>({
 
   const displayData = enablePagination ? pagination.getPageData(data) : data;
   const shouldScroll = enableScroll && displayData.length > 10;
+  const baseIndex = enablePagination ? pagination.startIndex : 0;
 
   return (
     <div className={className}>
@@ -100,6 +101,12 @@ const DataTableInner = <T,>({
             }}
           >
             <tr>
+              <th
+                className={`px-6 py-1.5 text-xs font-medium uppercase tracking-wider text-center`}
+                style={{ color: 'var(--theme-text-muted)', width: 60 }}
+              >
+                STT
+              </th>
               {columns.map((col, i) => (
                 <th
                   key={String(col.key) + i}
@@ -117,7 +124,7 @@ const DataTableInner = <T,>({
             {isLoading ? (
               <tr>
                 <td
-                  colSpan={columns.length}
+                  colSpan={columns.length + 1}
                   className='px-6 py-3 text-sm'
                   style={{ color: 'var(--theme-text-secondary)' }}
                 >
@@ -126,7 +133,7 @@ const DataTableInner = <T,>({
               </tr>
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className='px-6 py-4'>
+                <td colSpan={columns.length + 1} className='px-6 py-4'>
                   {emptyState}
                 </td>
               </tr>
@@ -147,6 +154,12 @@ const DataTableInner = <T,>({
                     ).style.backgroundColor = 'transparent';
                   }}
                 >
+                  <td
+                    className={`px-6 py-2 text-sm text-center`}
+                    style={{ color: 'var(--theme-text)' }}
+                  >
+                    {baseIndex + idx + 1}
+                  </td>
                   {columns.map((col, ci) => (
                     <td
                       key={String(col.key) + ci}

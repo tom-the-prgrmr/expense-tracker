@@ -42,17 +42,15 @@ const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
           disabled={disabled}
           className={
             `w-full px-3.5 py-2.5 rounded-xl outline-none transition-colors ` +
-            // Background & text for light and dark
-            `bg-white text-gray-900 ` +
-            `dark:bg-[var(--theme-surface-secondary,#334155)] dark:text-[var(--theme-text,#ffffff)] ` +
-            // Placeholder colors
-            `placeholder:text-gray-400 ` +
-            `dark:placeholder:text-[var(--theme-text-muted,#94a3b8)] ` +
-            // Borders for light and dark + error state
+            // Background & text (theme aware)
+            `bg-[var(--theme-surface,#ffffff)] text-[var(--theme-text,#0f172a)] ` +
+            // Placeholder colors (theme aware)
+            `placeholder:text-[var(--theme-text-muted,#64748b)] ` +
+            // Borders + error state (theme aware)
             `border ${
               hasError
                 ? 'border-accent-red'
-                : 'border-gray-300 dark:border-[var(--theme-border,#475569)]'
+                : 'border-[var(--theme-border,#e2e8f0)]'
             } ` +
             // Disabled & focus
             `${

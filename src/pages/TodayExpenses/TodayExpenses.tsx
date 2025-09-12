@@ -63,7 +63,7 @@ const TodayExpenses: FC = () => {
     queryFn: async () => {
       try {
         return await apiFetch<MoneyNotesResponse>(
-          `/api/v1/money-note?start_date=${appliedStart}&end_date=${appliedEnd}`
+          `/api/v1/money-note?start_date=${appliedStart}&end_date=${appliedEnd}&status=2`
         );
       } catch (err) {
         if (err instanceof Error) {
@@ -107,6 +107,14 @@ const TodayExpenses: FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const toast = useToast();
 
+  // Edit modal state for updating a single expense row
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<MoneyNoteDto | null>(null);
+  const [editNote, setEditNote] = useState<string>('');
+  const [editAmount, setEditAmount] = useState<string>('');
+  const [editCategoryId, setEditCategoryId] = useState<number | ''>('');
+  const [isUpdating, setIsUpdating] = useState(false);
+
   // Fetch categories for dropdown (active only)
   const { data: categoriesData } = useApiQuery({
     queryKey: ['categories-active'],
@@ -140,6 +148,100 @@ const TodayExpenses: FC = () => {
     if (isSaving) return; // prevent closing while saving
     setIsModalOpen(false);
   }, [isSaving]);
+
+  const openEdit = useCallback((row: MoneyNoteDto) => {
+    setEditTarget(row);
+    setEditNote(row.note || '');
+    setEditAmount(String(row.amount ?? ''));
+    setEditCategoryId(row.category_id ?? '');
+    setIsEditOpen(true);
+  }, []);
+
+  const closeEdit = useCallback(() => {
+    if (isUpdating) return;
+    setIsEditOpen(false);
+    setEditTarget(null);
+  }, [isUpdating]);
+
+  const onDelete = useCallback(
+    async (row: MoneyNoteDto) => {
+      const confirmed = window.confirm(
+        'Bạn có chắc muốn xóa khoản chi tiêu này?'
+      );
+      if (!confirmed) return;
+      try {
+        await apiFetch<unknown>(`/api/v1/money-note/${row.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            note: row.note,
+            amount: row.amount,
+            category_id: row.category_id,
+            status: 1,
+          }),
+        });
+        toast.showSuccess('Đã xóa khoản chi tiêu');
+        await refetch();
+      } catch (err) {
+        let message = 'Không thể xóa khoản chi tiêu.';
+        if (err instanceof Error && err.message) {
+          try {
+            const parsed = JSON.parse(err.message);
+            if (parsed?.message) message = parsed.message;
+          } catch {
+            message = err.message;
+          }
+        }
+        toast.showError(message);
+      }
+    },
+    [refetch, toast]
+  );
+
+  const onUpdate = useCallback(async () => {
+    if (!editTarget) return;
+    const note = editNote.trim();
+    const amountNum = Number(editAmount);
+    if (!note) {
+      toast.showError('Ghi chú không được để trống.');
+      return;
+    }
+    if (!editAmount || Number.isNaN(amountNum) || amountNum <= 0) {
+      toast.showError('Số tiền phải là số dương.');
+      return;
+    }
+    if (!editCategoryId) {
+      toast.showError('Vui lòng chọn danh mục.');
+      return;
+    }
+    setIsUpdating(true);
+    try {
+      await apiFetch<unknown>(`/api/v1/money-note/${editTarget.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          note,
+          amount: amountNum,
+          category_id: editCategoryId as number,
+        }),
+      });
+      toast.showSuccess('Cập nhật khoản chi tiêu thành công');
+      setIsEditOpen(false);
+      setEditTarget(null);
+      await refetch();
+    } catch (err) {
+      let message = 'Không thể cập nhật khoản chi tiêu.';
+      if (err instanceof Error && err.message) {
+        try {
+          const parsed = JSON.parse(err.message);
+          if (parsed?.message) message = parsed.message;
+        } catch {
+          message = err.message;
+        }
+      }
+      toast.showError(message);
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [editTarget, editNote, editAmount, editCategoryId, toast, refetch]);
 
   const onSave = useCallback(async () => {
     // Validate all rows
@@ -327,6 +429,20 @@ const TodayExpenses: FC = () => {
                     },
                   },
                   {
+                    key: 'created_at',
+                    header: 'Ngày tạo',
+                    align: 'left',
+                    render: (row) => {
+                      const r = row as unknown as MoneyNoteDto;
+                      const createdDate = parseEpochSecondsOrIsoToDate(
+                        r.created_at
+                      );
+                      return (
+                        <span>{formatDateLocalYYYYMMDD(createdDate)}</span>
+                      );
+                    },
+                  },
+                  {
                     key: 'amount',
                     header: 'Số tiền',
                     align: 'right',
@@ -336,6 +452,32 @@ const TodayExpenses: FC = () => {
                         <span className='font-medium'>
                           {formatCurrencyVND(r.amount)}
                         </span>
+                      );
+                    },
+                  },
+                  {
+                    key: 'actions',
+                    header: '',
+                    align: 'left',
+                    render: (row) => {
+                      const r = row as unknown as MoneyNoteDto;
+                      return (
+                        <div className='flex items-center gap-2'>
+                          <button
+                            className='px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-500'
+                            onClick={() => openEdit(r)}
+                            title='Cập nhật'
+                          >
+                            Sửa
+                          </button>
+                          <button
+                            className='px-2 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-500'
+                            onClick={() => onDelete(r)}
+                            title='Xóa'
+                          >
+                            Xóa
+                          </button>
+                        </div>
                       );
                     },
                   },
@@ -486,6 +628,91 @@ const TodayExpenses: FC = () => {
               </Button>
               <Button variant='primary' onClick={onSave} disabled={isSaving}>
                 {isSaving ? 'Đang lưu...' : 'Lưu'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isEditOpen && editTarget ? (
+        <div className='fixed inset-0 z-50 flex items-center justify-center'>
+          <div
+            className='absolute inset-0 bg-black/50 modal-backdrop'
+            onClick={closeEdit}
+          />
+          <div className='relative z-10 w-full max-w-lg mx-4 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 max-h-[50vh] flex flex-col'>
+            <div className='flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800'>
+              <h4 className='text-base font-semibold text-gray-900 dark:text-gray-100'>
+                Cập nhật khoản chi tiêu
+              </h4>
+              <button
+                aria-label='Đóng'
+                className='text-xl px-2 py-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                onClick={closeEdit}
+              >
+                ×
+              </button>
+            </div>
+            <div className='px-5 py-4 space-y-4 overflow-y-auto min-h-0 flex-1'>
+              <div>
+                <label className='block mb-1.5 text-sm font-medium text-secondary'>
+                  Ghi chú<span className='text-accent-red ml-1'>*</span>
+                </label>
+                <textarea
+                  value={editNote}
+                  onChange={(e) => setEditNote(e.target.value)}
+                  placeholder='Ví dụ: đi chợ mua cá'
+                  className={
+                    `w-full px-3.5 py-2.5 rounded-xl outline-none transition-colors ` +
+                    `bg-white text-gray-900 ` +
+                    `dark:bg-[var(--theme-surface-secondary,#334155)] dark:text-[var(--theme-text,#ffffff)] ` +
+                    `placeholder:text-gray-400 dark:placeholder:text-[var(--theme-text-muted,#94a3b8)] ` +
+                    `border border-gray-300 dark:border-[var(--theme-border,#475569)] ` +
+                    `focus:border-[var(--theme-primary,#3b82f6)] ` +
+                    `max-h-32 overflow-y-auto`
+                  }
+                  rows={3}
+                />
+              </div>
+              <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+                <TextInput
+                  label='Số tiền'
+                  type='number'
+                  inputMode='numeric'
+                  className='no-spinner'
+                  value={editAmount}
+                  onChange={(e) =>
+                    setEditAmount(e.target.value.replace(/[^0-9]/g, ''))
+                  }
+                  placeholder='Ví dụ: 100000'
+                  required
+                />
+                <Dropdown
+                  id={`edit-category-select-${editTarget.id}`}
+                  label='Danh mục'
+                  options={categoryOptions}
+                  className='dropdown-rounded'
+                  value={editCategoryId as number | ''}
+                  onChange={(e) => setEditCategoryId(Number(e.target.value))}
+                  placeholder='Chọn danh mục'
+                  required
+                />
+              </div>
+            </div>
+            <div className='flex items-center justify-end gap-3 px-5 py-4 border-t border-gray-200 dark:border-gray-800'>
+              <Button
+                variant='secondary'
+                onClick={closeEdit}
+                disabled={isUpdating}
+              >
+                Hủy
+              </Button>
+              <Button
+                variant='primary'
+                onClick={onUpdate}
+                disabled={isUpdating}
+              >
+                {isUpdating ? 'Đang lưu...' : 'Lưu'}
               </Button>
             </div>
           </div>

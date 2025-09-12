@@ -115,6 +115,23 @@ const AddExpenseModal: FC<AddExpenseModalProps> = ({ isOpen, onClose }) => {
 
   // Image upload ref
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [pendingAiParams, setPendingAiParams] = useState<{
+    chat?: string;
+    file?: File;
+    file_type?: string;
+    attachment_name?: string;
+    template_id?: string | number;
+    engine?: string;
+    model?: string;
+    assistant_id?: string;
+    web_search?: string | boolean;
+    detail?: string | boolean;
+    max_token_input?: string | number;
+    max_token_output?: string | number;
+  } | null>(null);
+  const [pendingItems, setPendingItems] = useState<
+    Array<{ category: number; note: string; amount: number }>
+  >([]);
 
   const hasMessages = useMemo(() => messages.length > 0, [messages.length]);
 
@@ -133,10 +150,31 @@ const AddExpenseModal: FC<AddExpenseModalProps> = ({ isOpen, onClose }) => {
         return;
       }
 
-      const SpeechRecognition =
-        (window as any).SpeechRecognition ||
-        (window as any).webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
+      type SpeechRecognitionConstructor = new () => unknown;
+      type MinimalRecognition = {
+        lang: string;
+        continuous: boolean;
+        interimResults: boolean;
+        maxAlternatives: number;
+        onresult: (event: {
+          results: ArrayLike<{ 0: { transcript: string } }>;
+        }) => void;
+        onerror: (event: { error: string }) => void;
+        onend: () => void;
+        start: () => void;
+        stop: () => void;
+      };
+      const SpeechRecognitionCtor = ((
+        window as unknown as {
+          SpeechRecognition?: SpeechRecognitionConstructor;
+        }
+      ).SpeechRecognition ||
+        (
+          window as unknown as {
+            webkitSpeechRecognition?: SpeechRecognitionConstructor;
+          }
+        ).webkitSpeechRecognition) as SpeechRecognitionConstructor;
+      const recognition = new SpeechRecognitionCtor() as MinimalRecognition;
 
       recognition.lang = 'vi-VN'; // Vietnamese language
       recognition.continuous = false;
@@ -145,13 +183,13 @@ const AddExpenseModal: FC<AddExpenseModalProps> = ({ isOpen, onClose }) => {
 
       let finalTranscript = '';
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event: {
+        results: ArrayLike<{ 0: { transcript: string } }>;
+      }) => {
         finalTranscript = event.results[0][0].transcript;
       };
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      recognition.onerror = (event: any) => {
+      recognition.onerror = (event: { error: string }) => {
         reject(new Error(`Speech recognition error: ${event.error}`));
       };
 
@@ -205,6 +243,20 @@ const AddExpenseModal: FC<AddExpenseModalProps> = ({ isOpen, onClose }) => {
       max_token_input?: string | number;
       max_token_output?: string | number;
     }) => {
+      const getErrorMessage = (error: unknown): string => {
+        if (error instanceof Error) {
+          try {
+            const data = JSON.parse(error.message);
+            if (data?.detail?.message) return data.detail.message;
+            if (data?.message) return data.message;
+            if (typeof data === 'string') return data;
+          } catch {
+            /* ignore parse error */
+          }
+          return error.message;
+        }
+        return 'Yêu cầu thất bại';
+      };
       const form = new FormData();
       if (params.chat) form.append('chat', params.chat);
       if (params.engine) form.append('engine', String(params.engine));
@@ -311,55 +363,14 @@ const AddExpenseModal: FC<AddExpenseModalProps> = ({ isOpen, onClose }) => {
               from: 'ai',
             },
           ]);
-
-          // Map AI result into payload for add money note API
-          try {
-            const payload = items.map((i) => ({
-              type: 1,
-              note: i.note,
-              amount: i.amount,
-              category_id: i.category,
-            }));
-            await apiFetch<unknown>('/api/v1/money-note', {
-              method: 'POST',
-              body: JSON.stringify(payload),
-            });
-
-            // Invalidate money notes queries to refresh dashboard and other pages
-            invalidateMoneyNotes();
-
-            updateMessages((prev) => [
-              ...prev,
-              {
-                id: crypto.randomUUID(),
-                kind: 'success_table',
-                items,
-                at: Date.now(),
-                from: 'ai',
-              },
-            ]);
-          } catch (err) {
-            const m =
-              err instanceof Error
-                ? err.message
-                : 'Không thể thêm khoản chi tiêu.';
-            updateMessages((prev) => [
-              ...prev,
-              {
-                id: crypto.randomUUID(),
-                kind: 'text',
-                text: `Lỗi thêm chi tiêu: ${m}`,
-                at: Date.now(),
-                from: 'ai',
-              },
-            ]);
-          }
+          // Defer adding money notes until user confirms
+          setPendingItems(items);
         }
       } catch (err) {
         // Remove loading message
         updateMessages((prev) => prev.filter((m) => m.id !== loadingId));
 
-        const message = err instanceof Error ? err.message : 'Yêu cầu thất bại';
+        const message = getErrorMessage(err);
         updateMessages((prev) => [
           ...prev,
           {
@@ -393,7 +404,7 @@ const AddExpenseModal: FC<AddExpenseModalProps> = ({ isOpen, onClose }) => {
     ]);
     setInputValue('');
     setTimeout(scrollToBottom, 0);
-    void callFinanceAi({
+    setPendingAiParams({
       chat: text,
       engine: 'google',
       assistant_id: 'finance_ai',
@@ -452,8 +463,8 @@ const AddExpenseModal: FC<AddExpenseModalProps> = ({ isOpen, onClose }) => {
         if (newMsgs.length) {
           updateMessages((prev) => [...prev, ...newMsgs]);
           setTimeout(scrollToBottom, 0);
-          // Call AI with the first image as attachment
-          void callFinanceAi({
+          // Prepare pending AI call with the first image as attachment
+          setPendingAiParams({
             chat: '',
             engine: 'google',
             assistant_id: 'finance_ai',
@@ -573,8 +584,8 @@ const AddExpenseModal: FC<AddExpenseModalProps> = ({ isOpen, onClose }) => {
               ]);
               setTimeout(scrollToBottom, 0);
 
-              // Submit the transcribed text to AI
-              void callFinanceAi({
+              // Prepare pending AI call with transcript
+              setPendingAiParams({
                 chat: transcript,
                 engine: 'google',
                 assistant_id: 'finance_ai',
@@ -822,6 +833,7 @@ const AddExpenseModal: FC<AddExpenseModalProps> = ({ isOpen, onClose }) => {
                                 className='border-b'
                                 style={{ borderColor: 'var(--theme-border)' }}
                               >
+                                <th className='text-left py-0.5'>Ngày</th>
                                 <th className='text-left py-0.5'>Ghi chú</th>
                                 <th className='text-left py-0.5'>Danh mục</th>
                                 <th className='text-right py-0.5'>Số tiền</th>
@@ -834,6 +846,9 @@ const AddExpenseModal: FC<AddExpenseModalProps> = ({ isOpen, onClose }) => {
                                   className='border-b'
                                   style={{ borderColor: 'var(--theme-border)' }}
                                 >
+                                  <td className='py-0.5'>
+                                    {new Date().toLocaleDateString('vi-VN')}
+                                  </td>
                                   <td className='py-0.5'>{it.note}</td>
                                   <td className='py-0.5'>
                                     {categoryMap.get(it.category) ??
@@ -900,6 +915,133 @@ const AddExpenseModal: FC<AddExpenseModalProps> = ({ isOpen, onClose }) => {
             )}
             <div ref={listEndRef} />
           </div>
+
+          {/* Confirm bar */}
+          {pendingItems.length > 0 && (
+            <div className='px-4 pb-2'>
+              <div
+                className='w-full flex items-center justify-between gap-2 px-3 py-2'
+                style={{
+                  backgroundColor: 'var(--theme-surface-secondary)',
+                  border: '1px solid var(--theme-border)',
+                  borderRadius: '12px',
+                }}
+              >
+                <div className='text-sm' style={{ color: 'var(--theme-text)' }}>
+                  Xác nhận thêm {pendingItems.length} khoản chi tiêu?
+                </div>
+                <div className='flex items-center gap-2'>
+                  <button
+                    type='button'
+                    onClick={() => setPendingItems([])}
+                    className='px-3 py-1.5 rounded-lg text-sm'
+                    style={{
+                      backgroundColor: 'transparent',
+                      border: '1px solid var(--theme-border)',
+                      color: 'var(--theme-text)',
+                    }}
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type='button'
+                    onClick={() => {
+                      const items = pendingItems;
+                      setPendingItems([]);
+                      void (async () => {
+                        try {
+                          const payload = items.map((i) => ({
+                            type: 1,
+                            note: i.note,
+                            amount: i.amount,
+                            category_id: i.category,
+                          }));
+                          await apiFetch<unknown>('/api/v1/money-note', {
+                            method: 'POST',
+                            body: JSON.stringify(payload),
+                          });
+                          invalidateMoneyNotes();
+                          updateMessages((prev) => [
+                            ...prev,
+                            {
+                              id: crypto.randomUUID(),
+                              kind: 'success_table',
+                              items,
+                              at: Date.now(),
+                              from: 'ai',
+                            },
+                          ]);
+                        } catch (err) {
+                          const m =
+                            err instanceof Error
+                              ? err.message
+                              : 'Không thể thêm khoản chi tiêu.';
+                          updateMessages((prev) => [
+                            ...prev,
+                            {
+                              id: crypto.randomUUID(),
+                              kind: 'text',
+                              text: `Lỗi thêm chi tiêu: ${m}`,
+                              at: Date.now(),
+                              from: 'ai',
+                            },
+                          ]);
+                        }
+                      })();
+                    }}
+                    className='px-3 py-1.5 rounded-lg text-sm text-white'
+                    style={{ backgroundColor: 'var(--theme-primary)' }}
+                  >
+                    Xác nhận
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Confirm bar */}
+          {pendingAiParams && (
+            <div className='px-4 pb-2'>
+              <div
+                className='w-full flex items-center justify-between gap-2 px-3 py-2'
+                style={{
+                  backgroundColor: 'var(--theme-surface-secondary)',
+                  border: '1px solid var(--theme-border)',
+                  borderRadius: '12px',
+                }}
+              >
+                <div className='text-sm' style={{ color: 'var(--theme-text)' }}>
+                  Xác nhận gửi để AI xử lý chi tiêu?
+                </div>
+                <div className='flex items-center gap-2'>
+                  <button
+                    type='button'
+                    onClick={() => setPendingAiParams(null)}
+                    className='px-3 py-1.5 rounded-lg text-sm'
+                    style={{
+                      backgroundColor: 'transparent',
+                      border: '1px solid var(--theme-border)',
+                      color: 'var(--theme-text)',
+                    }}
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type='button'
+                    onClick={() => {
+                      const p = pendingAiParams;
+                      setPendingAiParams(null);
+                      if (p) void callFinanceAi(p);
+                    }}
+                    className='px-3 py-1.5 rounded-lg text-sm text-white'
+                    style={{ backgroundColor: 'var(--theme-primary)' }}
+                  >
+                    Xác nhận
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Searchbar-like chat input */}
           <div className='p-4 border-t border-border'>
