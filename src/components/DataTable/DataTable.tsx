@@ -1,5 +1,5 @@
-import { PageSizeDropdown } from '@/components/PageSizeDropdown';
-import { Pagination } from '@/components/Pagination';
+import PageSizeDropdown from '@/components/PageSizeDropdown/PageSizeDropdown';
+import Pagination from '@/components/Pagination/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 import { type ReactNode, memo } from 'react';
 

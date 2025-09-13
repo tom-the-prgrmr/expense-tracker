@@ -18,6 +18,7 @@ const queryClient = new QueryClient({
     },
   },
 });
+console.log(queryClient.getQueryCache());
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

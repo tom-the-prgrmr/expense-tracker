@@ -198,3 +198,34 @@ input.custom-date::-moz-focus-inner {
   will-change: transform;
   animation: marquee-single 14s linear infinite;
 }
+
+/* Custom Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--theme-surface);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--theme-primary);
+  border-radius: 10px;
+  border: 2px solid var(--theme-surface);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-secondary);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--theme-surface);
+}
+
+/* Firefox scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--theme-primary) var(--theme-surface);
+}

@@ -1,14 +1,17 @@
-import { AddExpenseModal } from '@/components/AddExpenseModal';
+import AddExpenseModal from '@/components/AddExpenseModal/AddExpenseModal';
+import BudgetAlert from '@/components/BudgetAlert/BudgetAlert';
 import PieChart from '@/components/Charts/PieChart';
 import RadialProgress from '@/components/Charts/RadialProgress';
 import PageLayout from '@/components/PageLayout/PageLayout';
-import { PageSizeDropdown } from '@/components/PageSizeDropdown';
-import { Pagination } from '@/components/Pagination';
+import PageSizeDropdown from '@/components/PageSizeDropdown/PageSizeDropdown';
+import Pagination from '@/components/Pagination/Pagination';
 import { apiFetch } from '@/config/api';
 import { PIE_CHART_COLORS } from '@/constants/charts';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { usePagination } from '@/hooks/usePagination';
 import {
+  type BudgetsResponse,
+  type BudgetWithCategory,
   type CategoriesResponse,
   type CategoryDto,
   type MoneyNoteDto,
@@ -29,12 +32,61 @@ const Dashboard: FC = () => {
   // Modal state
   const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
 
-  // Placeholder data; replace with real data later
-  const limitAmount = 5000000; // hạn mức ngày (VND)
-  const spentToday = 1200000; // đã chi hôm nay
-  const remaining = Math.max(limitAmount - spentToday, 0);
-  const withinLimit = spentToday <= limitAmount;
-  const spentPercent = Math.min((spentToday / limitAmount) * 100, 100);
+  // Fetch budgets for today's budget tracking
+  const { data: budgetsData } = useApiQuery({
+    queryKey: ['budgets-dashboard'],
+    queryFn: async () => apiFetch<BudgetsResponse>('/api/v1/alert'),
+    loadingMessage: undefined,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    refetchOnMount: true,
+  });
+
+  const budgets: BudgetWithCategory[] = useMemo(
+    () => budgetsData?.data ?? [],
+    [budgetsData]
+  );
+
+  // Calculate today's budget summary
+  const todayBudgetSummary = useMemo(() => {
+    const today = new Date();
+    const todayStart = localDateToEpochSeconds(today);
+    const todayEnd = localDateToEndOfDayEpochSeconds(today);
+
+    // Filter budgets that are active today
+    const activeBudgets = budgets.filter((budget) => {
+      const budgetStart = budget.start_date;
+      const budgetEnd = budget.end_date;
+      return (
+        budget.status === 2 &&
+        todayStart >= budgetStart &&
+        todayEnd <= budgetEnd
+      );
+    });
+
+    const totalBudget = activeBudgets.reduce(
+      (sum, budget) => sum + budget.amount,
+      0
+    );
+    const totalSpent = activeBudgets.reduce(
+      (sum, budget) => sum + budget.spent_amount,
+      0
+    );
+    const totalRemaining = totalBudget - totalSpent;
+    const withinLimit = totalSpent <= totalBudget;
+    const spentPercent = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
+
+    return {
+      totalBudget,
+      totalSpent,
+      totalRemaining,
+      withinLimit,
+      spentPercent,
+      activeBudgetsCount: activeBudgets.length,
+    };
+  }, [budgets]);
 
   // Today range converted to timestamps for API
   const today = useMemo(() => new Date(), []);
@@ -97,7 +149,7 @@ const Dashboard: FC = () => {
     queryKey: ['categories'],
     queryFn: async () => {
       try {
-        return await apiFetch<CategoriesResponse>('/api/v1/category');
+        return await apiFetch<CategoriesResponse>('/api/v1/category?status=2');
       } catch (error) {
         if (error instanceof Error) {
           let errorMessage = 'Không thể tải danh mục.';
@@ -309,6 +361,8 @@ const Dashboard: FC = () => {
       icon='📊'
       subtitle='Tổng quan hạn mức, chi tiêu hôm nay, top danh mục và báo cáo nhanh'
     >
+      {/* Budget Alerts */}
+      <BudgetAlert budgets={budgets} />
       {/* 2x2 corners on md+, stacked on mobile */}
       <div className='grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 xl:gap-8'>
         {/* 1) Tổng quan hạn mức và số dư trong ngày (Top-left) */}
@@ -316,19 +370,26 @@ const Dashboard: FC = () => {
           <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-6'>
             <div
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium ${
-                withinLimit
+                todayBudgetSummary.withinLimit
                   ? 'bg-gradient-to-r from-accent-green/20 to-accent-green/10 text-accent-green border border-accent-green/30'
                   : 'bg-gradient-to-r from-accent-red/20 to-accent-red/10 text-accent-red border border-accent-red/30'
               }`}
             >
-              <span className='text-lg'>{withinLimit ? '✅' : '⚠️'}</span>
-              {withinLimit ? 'Trong hạn mức' : 'Quá hạn mức'}
+              <span className='text-lg'>
+                {todayBudgetSummary.withinLimit ? '✅' : '⚠️'}
+              </span>
+              {todayBudgetSummary.withinLimit ? 'Trong hạn mức' : 'Quá hạn mức'}
             </div>
             <div className='text-sm text-secondary'>
               Hạn mức:{' '}
               <span className='font-bold text-primary text-gradient'>
-                {limitAmount.toLocaleString('vi-VN')}₫
+                {todayBudgetSummary.totalBudget.toLocaleString('vi-VN')}₫
               </span>
+              {todayBudgetSummary.activeBudgetsCount > 0 && (
+                <span className='ml-2 text-xs opacity-75'>
+                  ({todayBudgetSummary.activeBudgetsCount} hạn mức)
+                </span>
+              )}
             </div>
           </div>
 
@@ -337,19 +398,21 @@ const Dashboard: FC = () => {
             <div className='flex items-center justify-center'>
               <div className='relative'>
                 <RadialProgress
-                  percent={spentPercent}
+                  percent={todayBudgetSummary.spentPercent}
                   size={160}
-                  barColor={withinLimit ? '#10b981' : '#ef4444'}
+                  barColor={
+                    todayBudgetSummary.withinLimit ? '#10b981' : '#ef4444'
+                  }
                 />
                 <div className='absolute inset-0 flex flex-col items-center justify-center'>
                   <div className='text-[11px] sm:text-xs text-muted mb-1'>
                     Đã chi
                   </div>
                   <div className='text-base sm:text-lg font-bold text-primary text-gradient leading-tight text-center'>
-                    {monthlySummary.monthTotal.toLocaleString('vi-VN')}₫
+                    {todayBudgetSummary.totalSpent.toLocaleString('vi-VN')}₫
                   </div>
                   <div className='text-[10px] sm:text-[11px] text-muted'>
-                    {spentPercent.toFixed(0)}%
+                    {todayBudgetSummary.spentPercent.toFixed(0)}%
                   </div>
                 </div>
               </div>
@@ -361,13 +424,13 @@ const Dashboard: FC = () => {
                 <div className='card-glass p-3 sm:p-4 flex-1'>
                   <div className='text-xs text-muted mb-1'>Hạn mức</div>
                   <div className='text-base sm:text-lg font-bold text-primary text-gradient leading-tight'>
-                    {limitAmount.toLocaleString('vi-VN')}₫
+                    {todayBudgetSummary.totalBudget.toLocaleString('vi-VN')}₫
                   </div>
                 </div>
                 <div className='card-glass p-3 sm:p-4 flex-1'>
                   <div className='text-xs text-muted mb-1'>Đã chi</div>
                   <div className='text-base sm:text-lg font-bold text-primary text-gradient leading-tight'>
-                    {monthlySummary.monthTotal.toLocaleString('vi-VN')}₫
+                    {todayBudgetSummary.totalSpent.toLocaleString('vi-VN')}₫
                   </div>
                 </div>
               </div>
@@ -375,10 +438,12 @@ const Dashboard: FC = () => {
                 <div className='text-xs text-muted mb-1'>Còn lại</div>
                 <div
                   className={`text-base sm:text-lg font-bold leading-tight ${
-                    withinLimit ? 'text-accent-green' : 'text-accent-red'
+                    todayBudgetSummary.withinLimit
+                      ? 'text-accent-green'
+                      : 'text-accent-red'
                   }`}
                 >
-                  {remaining.toLocaleString('vi-VN')}₫
+                  {todayBudgetSummary.totalRemaining.toLocaleString('vi-VN')}₫
                 </div>
               </div>
             </div>

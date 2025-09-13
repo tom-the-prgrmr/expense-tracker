@@ -19,7 +19,7 @@ A reusable pagination component with a custom hook for managing pagination state
 ### Basic Usage
 
 ```tsx
-import { Pagination } from '@/components/Pagination';
+import Pagination from '@/components/Pagination/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 
 const MyComponent = () => {

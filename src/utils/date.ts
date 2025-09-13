@@ -22,32 +22,6 @@ export const formatCurrencyVND = (amount: number): string => {
   return `${Number(amount || 0).toLocaleString('vi-VN')}₫`;
 };
 
-export const localDateToEpochSeconds = (date: Date): number => {
-  // Convert local date to start of day in UTC+0, then to epoch seconds
-  const utcDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
-  const startOfDay = new Date(
-    Date.UTC(utcDate.getFullYear(), utcDate.getMonth(), utcDate.getDate())
-  );
-  return Math.floor(startOfDay.getTime() / 1000);
-};
-
-export const localDateToEndOfDayEpochSeconds = (date: Date): number => {
-  // Convert local date to end of day in UTC+0, then to epoch seconds
-  const utcDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
-  const endOfDay = new Date(
-    Date.UTC(
-      utcDate.getFullYear(),
-      utcDate.getMonth(),
-      utcDate.getDate(),
-      23,
-      59,
-      59,
-      999
-    )
-  );
-  return Math.floor(endOfDay.getTime() / 1000);
-};
-
 export const getFirstDayOfMonth = (date: Date): Date => {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 };
@@ -55,3 +29,9 @@ export const getFirstDayOfMonth = (date: Date): Date => {
 export const getLastDayOfMonth = (date: Date): Date => {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0);
 };
+
+// Re-export UTC time utilities for backward compatibility
+export {
+  localDateToUtcEndOfDayEpochSeconds as localDateToEndOfDayEpochSeconds,
+  localDateToUtcEpochSeconds as localDateToEpochSeconds,
+} from './time';

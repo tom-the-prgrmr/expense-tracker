@@ -16,7 +16,7 @@ A reusable dropdown component for selecting the number of items to display per p
 ### Basic Usage
 
 ```tsx
-import { PageSizeDropdown } from '@/components/PageSizeDropdown';
+import PageSizeDropdown from '@/components/PageSizeDropdown/PageSizeDropdown';
 
 const MyComponent = () => {
   const [pageSize, setPageSize] = useState(20);
